@@ -5,9 +5,10 @@
   "main": "app.js",
   "scripts": {
     "start": "npx serve . -l 3000",
-    "cap:sync": "cap sync",
-    "cap:add:android": "cap add android",
-    "cap:add:ios": "cap add ios",
+    "build": "node prepare-www.js",
+    "cap:sync": "node prepare-www.js && cap sync",
+    "cap:add:android": "node prepare-www.js && cap add android",
+    "cap:add:ios": "node prepare-www.js && cap add ios",
     "cap:open:android": "cap open android",
     "cap:open:ios": "cap open ios",
     "cap:build:android": "cap build android",

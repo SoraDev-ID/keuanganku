@@ -21,38 +21,24 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install NPM Dependencies
+      - name: Install NPM Dependencies & Build Web Assets
         run: |
           npm install
+          npm run build
+          npx cap sync android
 
       - name: Setup Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Add and Sync Capacitor Android
-        run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          npx cap sync android
-
-      - name: Adjust Android Min SDK for Maximum Compatibility
-        run: |
-          # Set minSdkVersion to 22 (Android 5.1+) to ensure compatibility with all modern and legacy Android devices
-          if [ -f "android/variables.gradle" ]; then
-            sed -i 's/minSdkVersion = [0-9]*/minSdkVersion = 22/g' android/variables.gradle
-          fi
+          cache: 'gradle'
 
       - name: Build Debug APK with Gradle
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
