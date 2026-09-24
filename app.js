@@ -91,6 +91,30 @@ function formatMonthISO(date) {
   return `${y}-${m}`;
 }
 
+/**
+ * Validasi apakah string tanggal sesuai format YYYY-MM-DD dan merupakan tanggal kalender yang valid
+ */
+function isValidISODate(dateStr) {
+  if (typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return false;
+  }
+  const [yearStr, monthStr, dayStr] = dateStr.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const day = parseInt(dayStr, 10);
+
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return false;
+  }
+
+  const d = new Date(year, month - 1, day);
+  return (
+    d.getFullYear() === year &&
+    (d.getMonth() + 1) === month &&
+    d.getDate() === day
+  );
+}
+
 function getCategoryInfo(type, catId) {
   const list = CATEGORIES[type] || [];
   const found = list.find(c => c.id === catId);
@@ -1366,6 +1390,10 @@ function getPdfPrintPlugin() {
   return window.Capacitor?.Plugins?.PdfPrint || null;
 }
 
+function getAppPlugin() {
+  return window.Capacitor?.Plugins?.App || null;
+}
+
 /**
  * Konversi string base64 menjadi Blob biner
  */
@@ -1885,22 +1913,90 @@ function handleImportJsonFile(event) {
         throw new Error('Format berkas tidak valid. Berkas JSON harus berupa daftar transaksi.');
       }
 
-      // Validasi struktur transaksi minimal
-      const validItems = itemsArray.filter(item => 
-        item && 
-        typeof item === 'object' && 
-        item.id && 
-        item.type && 
-        item.amount !== undefined && 
-        item.date
-      );
+      // Validasi ketat struktur setiap catatan transaksi
+      const validExpenseCategories = (CATEGORIES.expense || []).map(c => c.id);
+      const validIncomeCategories = (CATEGORIES.income || []).map(c => c.id);
+      const validItems = [];
+      let skippedCount = 0;
 
-      if (validItems.length === 0) {
-        throw new Error('Tidak ditemukan catatan transaksi yang valid dalam berkas cadangan ini.');
+      for (const item of itemsArray) {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          skippedCount++;
+          continue;
+        }
+
+        // 1. Wajib id (string tidak kosong)
+        if (typeof item.id !== 'string' || item.id.trim() === '') {
+          skippedCount++;
+          continue;
+        }
+
+        // 2. Wajib type ('income' atau 'expense')
+        if (item.type !== 'income' && item.type !== 'expense') {
+          skippedCount++;
+          continue;
+        }
+
+        // 3. Wajib amount (angka terbatas > 0)
+        if (typeof item.amount !== 'number' || !Number.isFinite(item.amount) || item.amount <= 0) {
+          skippedCount++;
+          continue;
+        }
+
+        // 4. Wajib date (format YYYY-MM-DD valid)
+        if (!isValidISODate(item.date)) {
+          skippedCount++;
+          continue;
+        }
+
+        // 5. Wajib category (harus ada di daftar kategori sesuai type; jika tidak, ganti ke 'other_expense'/'other_income')
+        let category = item.category;
+        if (item.type === 'expense') {
+          if (typeof category !== 'string' || !validExpenseCategories.includes(category)) {
+            category = 'other_expense';
+          }
+        } else {
+          if (typeof category !== 'string' || !validIncomeCategories.includes(category)) {
+            category = 'other_income';
+          }
+        }
+
+        // 6. Wajib title dan notes berupa string (dipotong panjang wajar)
+        if (typeof item.title !== 'string') {
+          skippedCount++;
+          continue;
+        }
+
+        if (typeof item.notes !== 'string') {
+          skippedCount++;
+          continue;
+        }
+
+        const title = item.title.trim().slice(0, 100);
+        const notes = item.notes.trim().slice(0, 500);
+        const time = typeof item.time === 'string' && item.time.trim() ? item.time.trim().slice(0, 10) : '12:00';
+
+        validItems.push({
+          id: item.id.trim(),
+          type: item.type,
+          amount: item.amount,
+          date: item.date,
+          category,
+          title,
+          notes,
+          time
+        });
       }
 
+      if (validItems.length === 0) {
+        const skippedInfo = skippedCount > 0 ? ` (${skippedCount} data tidak valid dilewati)` : '';
+        throw new Error(`Tidak ditemukan catatan transaksi yang valid dalam berkas cadangan ini.${skippedInfo}`);
+      }
+
+      const skippedNote = skippedCount > 0 ? `\n(${skippedCount} transaksi tidak valid dilewati)` : '';
+
       const mergeChoice = confirm(
-        `Ditemukan ${validItems.length} transaksi di berkas cadangan.\n\n` +
+        `Ditemukan ${validItems.length} transaksi valid di berkas cadangan.${skippedNote}\n\n` +
         `• Klik "OK" untuk MENGGABUNGKAN (Merge) dengan data yang ada saat ini.\n` +
         `• Klik "Batal" untuk memilih opsi Menimpa Seluruh Data atau Batal.`
       );
@@ -1915,7 +2011,7 @@ function handleImportJsonFile(event) {
         resultData = Array.from(map.values());
       } else {
         const overwriteChoice = confirm(
-          `Apakah Anda ingin MENIMPA SELURUH DATA yang ada saat ini dengan data dari berkas cadangan (${validItems.length} transaksi)?\n\n` +
+          `Apakah Anda ingin MENIMPA SELURUH DATA yang ada saat ini dengan data dari berkas cadangan (${validItems.length} transaksi valid)?${skippedNote}\n\n` +
           `PERINGATAN: Semua catatan transaksi yang ada saat ini akan digantikan!`
         );
         if (overwriteChoice) {
@@ -1930,7 +2026,8 @@ function handleImportJsonFile(event) {
       saveTransactions(resultData);
       refreshUI();
       closeExportModal();
-      showToast(`Berhasil memulihkan ${validItems.length} transaksi cadangan!`, 'success');
+      const skippedToast = skippedCount > 0 ? ` (${skippedCount} data tidak valid dilewati)` : '';
+      showToast(`Berhasil memulihkan ${validItems.length} transaksi cadangan!${skippedToast}`, 'success');
     } catch (err) {
       console.error('Gagal mengimpor JSON:', err);
       showToast('Gagal memulihkan data: ' + err.message, 'danger');
@@ -2256,6 +2353,60 @@ function setupEventListeners() {
       }
     });
   });
+
+  // Tombol Kembali Android Capacitor
+  setupAndroidBackButton();
+}
+
+let isBackButtonInitialized = false;
+
+/**
+ * 1. Tombol Kembali Android Capacitor
+ * Hanya aktif saat isNativePlatform() true. Menutup modal yang terbuka atau keluar dari aplikasi.
+ */
+function setupAndroidBackButton() {
+  if (!isNativePlatform() || isBackButtonInitialized) return;
+
+  const App = window.Capacitor?.Plugins?.App;
+  if (!App || typeof App.addListener !== 'function') return;
+
+  isBackButtonInitialized = true;
+  window.Capacitor.Plugins.App.addListener('backButton', () => {
+    const transactionModal = document.getElementById('transactionModal');
+    const exportModal = document.getElementById('exportModal');
+    const iosInstallModal = document.getElementById('iosInstallModal');
+
+    if (transactionModal && transactionModal.open) {
+      closeModal();
+      return;
+    }
+    if (exportModal && exportModal.open) {
+      closeExportModal();
+      return;
+    }
+    if (iosInstallModal && iosInstallModal.open) {
+      iosInstallModal.close();
+      return;
+    }
+
+    App.exitApp();
+  });
+}
+
+/**
+ * Sembunyikan elemen instalasi PWA saat berjalan di platform native
+ */
+function hidePwaInstallElements() {
+  const installAppBtn = document.getElementById('installAppBtn');
+  const pwaInstallBanner = document.getElementById('pwaInstallBanner');
+  const iosInstallModal = document.getElementById('iosInstallModal');
+
+  if (installAppBtn) installAppBtn.classList.add('hidden');
+  if (pwaInstallBanner) pwaInstallBanner.classList.add('hidden');
+  if (iosInstallModal) {
+    if (iosInstallModal.open) iosInstallModal.close();
+    iosInstallModal.classList.add('hidden');
+  }
 }
 
 // =============================================================================
@@ -2279,7 +2430,13 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   setupNetworkStatusListeners();
-  setupPWAInstallation();
+
+  // 3. Saat berjalan native (isNativePlatform() true), lewati setupPWAInstallation & sembunyikan elemen PWA
+  if (isNativePlatform()) {
+    hidePwaInstallElements();
+  } else {
+    setupPWAInstallation();
+  }
 });
 
 // =============================================================================
@@ -2325,6 +2482,12 @@ function setupNetworkStatusListeners() {
 }
 
 function setupPWAInstallation() {
+  // Jika berjalan native, lewati seluruh setup dan pastikan elemen tersembunyi
+  if (isNativePlatform()) {
+    hidePwaInstallElements();
+    return;
+  }
+
   const installAppBtn = document.getElementById('installAppBtn');
   const pwaInstallBanner = document.getElementById('pwaInstallBanner');
   const bannerInstallBtn = document.getElementById('bannerInstallBtn');
