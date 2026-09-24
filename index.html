@@ -25,16 +25,14 @@
   <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon.png">
   <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   
-  <!-- Google Fonts: Plus Jakarta Sans -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Local Font: Plus Jakarta Sans (300-800) -->
+  <link rel="stylesheet" href="vendor/fonts/plus-jakarta-sans.css">
   
-  <!-- FontAwesome Icons for crisp UI icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Local FontAwesome 6.5.1 Icons -->
+  <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
   
-  <!-- Chart.js for interactive analytics -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Local Chart.js 4.4.1 -->
+  <script src="vendor/chartjs/chart.umd.min.js"></script>
   
   <!-- jsPDF & AutoTable for Offline PDF Export & Sharing -->
   <script src="vendor/jspdf.umd.min.js"></script>
@@ -287,9 +285,14 @@
             </div>
             <h4>Tidak ada transaksi yang cocok</h4>
             <p>Silakan sesuaikan filter periode, atau tambahkan catatan transaksi baru.</p>
-            <button class="btn btn-primary btn-sm" id="emptyAddBtn">
-              <i class="fa-solid fa-plus"></i> Tambah Transaksi
-            </button>
+            <div class="empty-state-actions" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 8px;">
+              <button class="btn btn-primary btn-sm" id="emptyAddBtn">
+                <i class="fa-solid fa-plus"></i> Tambah Transaksi
+              </button>
+              <button class="btn btn-secondary btn-sm" id="emptySampleDataBtn">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Muat Data Contoh
+              </button>
+            </div>
           </div>
         </div>
       </section>

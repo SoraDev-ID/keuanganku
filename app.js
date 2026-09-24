@@ -214,6 +214,35 @@ function generateSampleData() {
   ];
 }
 
+/**
+ * Memuat data contoh transaksi hanya jika diminta oleh pengguna
+ */
+function loadSampleData() {
+  const conf = confirm('Muat data contoh transaksi finansial untuk mencoba fitur aplikasi?');
+  if (!conf) return;
+
+  const sample = generateSampleData();
+  if (state.transactions.length === 0) {
+    saveTransactions(sample);
+  } else {
+    const merge = confirm(
+      'Sudah ada catatan transaksi tersimpan.\n\n' +
+      '• Klik "OK" untuk MENGGABUNGKAN data contoh dengan transaksi Anda saat ini.\n' +
+      '• Klik "Batal" untuk MENIMPA SELURUH DATA dengan data contoh.'
+    );
+    if (merge) {
+      const map = new Map();
+      state.transactions.forEach(t => map.set(t.id, t));
+      sample.forEach(t => map.set(t.id, t));
+      saveTransactions(Array.from(map.values()));
+    } else {
+      saveTransactions(sample);
+    }
+  }
+  showToast('Data contoh transaksi berhasil dimuat!', 'success');
+  refreshUI();
+}
+
 // =============================================================================
 // 4. Inisialisasi Data & LocalStorage
 // =============================================================================
@@ -221,9 +250,8 @@ function loadTransactions() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      const sample = generateSampleData();
-      saveTransactions(sample);
-      return sample;
+      // Data asli pengguna mulai dari kosong, tidak otomatis memuat data contoh
+      return [];
     }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
@@ -1475,14 +1503,25 @@ function exportToCSV() {
   showToast('File CSV berhasil diunduh', 'success');
 }
 
+/**
+ * Ekspor data transaksi ke berkas cadangan JSON
+ */
 function exportToJSON() {
   if (state.transactions.length === 0) {
-    showToast('Tidak ada data untuk diekspor', 'danger');
+    showToast('Tidak ada data transaksi untuk diekspor', 'danger');
     return;
   }
 
-  const jsonStr = JSON.stringify(state.transactions, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const backupPayload = {
+    app: 'KeuanganKu',
+    version: '1.0.0',
+    exportDate: new Date().toISOString(),
+    totalTransactions: state.transactions.length,
+    transactions: state.transactions
+  };
+
+  const jsonStr = JSON.stringify(backupPayload, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1490,11 +1529,22 @@ function exportToJSON() {
   a.click();
   URL.revokeObjectURL(url);
   closeExportModal();
-  showToast('Berkas cadangan JSON berhasil diunduh', 'success');
+  showToast(`Berkas cadangan JSON (${state.transactions.length} transaksi) berhasil diunduh!`, 'success');
 }
 
 /**
- * Pulihkan & Impor Data Transaksi dari Berkas Cadangan JSON
+ * Pemicu dialog pemilihan berkas JSON untuk pemulihan data
+ */
+function importFromJSON() {
+  const input = document.getElementById('importJsonInput');
+  if (input) {
+    input.value = '';
+    input.click();
+  }
+}
+
+/**
+ * Membaca dan memulihkan transaksi dari berkas cadangan JSON
  */
 function handleImportJsonFile(event) {
   const file = event.target.files && event.target.files[0];
@@ -1503,37 +1553,60 @@ function handleImportJsonFile(event) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const data = JSON.parse(e.target.result);
-      if (!Array.isArray(data)) {
+      const parsed = JSON.parse(e.target.result);
+      let itemsArray = null;
+
+      if (Array.isArray(parsed)) {
+        itemsArray = parsed;
+      } else if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.transactions)) {
+          itemsArray = parsed.transactions;
+        } else if (Array.isArray(parsed.data)) {
+          itemsArray = parsed.data;
+        }
+      }
+
+      if (!itemsArray || !Array.isArray(itemsArray)) {
         throw new Error('Format berkas tidak valid. Berkas JSON harus berupa daftar transaksi.');
       }
 
-      const validItems = data.filter(item => item && item.id && item.type && item.amount !== undefined && item.date);
+      // Validasi struktur transaksi minimal
+      const validItems = itemsArray.filter(item => 
+        item && 
+        typeof item === 'object' && 
+        item.id && 
+        item.type && 
+        item.amount !== undefined && 
+        item.date
+      );
+
       if (validItems.length === 0) {
         throw new Error('Tidak ditemukan catatan transaksi yang valid dalam berkas cadangan ini.');
       }
 
       const mergeChoice = confirm(
         `Ditemukan ${validItems.length} transaksi di berkas cadangan.\n\n` +
-        `• Klik "OK" untuk MENGGABUNGKAN (Merge) dengan data yang ada sekarang.\n` +
-        `• Klik "Batal" jika ingin memilih Opsi Menimpa Seluruh Data atau Batal.`
+        `• Klik "OK" untuk MENGGABUNGKAN (Merge) dengan data yang ada saat ini.\n` +
+        `• Klik "Batal" untuk memilih opsi Menimpa Seluruh Data atau Batal.`
       );
 
       let resultData = [];
       if (mergeChoice) {
         const map = new Map();
+        // Pertahankan transaksi lama
         state.transactions.forEach(t => map.set(t.id, t));
+        // Gabungkan transaksi cadangan
         validItems.forEach(t => map.set(t.id, t));
         resultData = Array.from(map.values());
       } else {
         const overwriteChoice = confirm(
           `Apakah Anda ingin MENIMPA SELURUH DATA yang ada saat ini dengan data dari berkas cadangan (${validItems.length} transaksi)?\n\n` +
-          `PERINGATAN: Semua catatan transaksi yang ada saat ini akan digantikan.`
+          `PERINGATAN: Semua catatan transaksi yang ada saat ini akan digantikan!`
         );
         if (overwriteChoice) {
           resultData = validItems;
         } else {
-          showToast('Impor berkas JSON dibatalkan', 'info');
+          showToast('Impor berkas cadangan dibatalkan', 'info');
           event.target.value = '';
           return;
         }
@@ -1779,15 +1852,15 @@ function setupEventListeners() {
   document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
 
   // Data Demo & Clear
-  document.getElementById('resetDemoDataBtn').addEventListener('click', () => {
-    const conf = confirm('Muat ulang data contoh transaksi? (Data saat ini akan ditimpa)');
-    if (conf) {
-      const sample = generateSampleData();
-      saveTransactions(sample);
-      showToast('Data contoh transaksi berhasil dimuat', 'success');
-      refreshUI();
-    }
-  });
+  const resetDemoDataBtn = document.getElementById('resetDemoDataBtn');
+  if (resetDemoDataBtn) {
+    resetDemoDataBtn.addEventListener('click', loadSampleData);
+  }
+
+  const emptySampleDataBtn = document.getElementById('emptySampleDataBtn');
+  if (emptySampleDataBtn) {
+    emptySampleDataBtn.addEventListener('click', loadSampleData);
+  }
 
   document.getElementById('clearAllDataBtn').addEventListener('click', () => {
     const conf = confirm('Peringatan: Hapus semua catatan transaksi secara permanen?');
@@ -1819,8 +1892,15 @@ window.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
   refreshUI();
 
-  // Inisialisasi PWA & Mobile Engine
-  registerServiceWorker();
+  // Unregister any obsolete service workers to prevent caching issues
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister();
+      }
+    }).catch(() => {});
+  }
+
   setupNetworkStatusListeners();
   setupPWAInstallation();
 });
@@ -1839,32 +1919,6 @@ function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches ||
          window.navigator.standalone === true ||
          document.referrer.includes('android-app://');
-}
-
-function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then((reg) => {
-          console.log('[KeuanganKu PWA] Service Worker aktif dengan scope:', reg.scope);
-
-          // Cek pembaruan berkas
-          reg.addEventListener('updatefound', () => {
-            const installingWorker = reg.installing;
-            if (installingWorker) {
-              installingWorker.addEventListener('statechange', () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  showToast('Versi baru aplikasi tersedia. Muat ulang untuk memperbarui.', 'info');
-                }
-              });
-            }
-          });
-        })
-        .catch((err) => {
-          console.warn('[KeuanganKu PWA] Gagal mendaftarkan Service Worker:', err);
-        });
-    });
-  }
 }
 
 function setupNetworkStatusListeners() {

@@ -7,9 +7,9 @@
   },
   "android": {
     "backgroundColor": "#0b0f17",
-    "allowMixedContent": true,
+    "allowMixedContent": false,
     "captureInput": true,
-    "webContentsDebuggingEnabled": true
+    "webContentsDebuggingEnabled": false
   },
   "ios": {
     "backgroundColor": "#0b0f17",

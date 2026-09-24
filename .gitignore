@@ -21,3 +21,6 @@ Desktop.ini
 # Logs & Temp
 *.log
 .npm/
+
+*.jks
+*.keystore

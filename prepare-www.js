@@ -12,9 +12,7 @@ const filesToCopy = [
   'index.html',
   'style.css',
   'app.js',
-  'manifest.webmanifest',
-  'manifest.json',
-  'sw.js'
+  'manifest.webmanifest'
 ];
 
 for (const file of filesToCopy) {
