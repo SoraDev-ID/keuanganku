@@ -3,7 +3,7 @@
  * Provides offline caching, fast load times, and PWA installation capability
  */
 
-const CACHE_NAME = 'keuanganku-v1.0.1';
+const CACHE_NAME = 'keuanganku-v1.0.2';
 
 const PRECACHE_ASSETS = [
   './',
@@ -12,6 +12,8 @@ const PRECACHE_ASSETS = [
   './app.js',
   './manifest.webmanifest',
   './manifest.json',
+  './vendor/jspdf.umd.min.js',
+  './vendor/jspdf.plugin.autotable.min.js',
   './icons/icon.svg',
   './icons/favicon.png',
   './icons/apple-touch-icon.png',

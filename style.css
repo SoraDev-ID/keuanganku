@@ -873,6 +873,134 @@ body::after {
   border-color: var(--color-expense-border);
 }
 
+/* ==========================================================================
+   Mobile Transactions List & Card View (< 640px)
+   ========================================================================== */
+.mobile-transactions-list {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-tx-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.mobile-tx-card:active {
+  transform: scale(0.985);
+  background: var(--bg-surface-elevated);
+}
+
+.mobile-tx-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-tx-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mobile-tx-details {
+  min-width: 0;
+  flex: 1;
+}
+
+.mobile-tx-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.mobile-tx-notes {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.mobile-tx-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.mobile-tx-cat-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: var(--badge-bg);
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.7rem;
+}
+
+.mobile-tx-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mobile-tx-amount {
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.mobile-tx-amount.amount-income {
+  color: var(--color-income);
+}
+
+.mobile-tx-amount.amount-expense {
+  color: var(--color-expense);
+}
+
+.mobile-tx-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mobile-tx-actions .action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+
 /* Empty State */
 .empty-state {
   padding: 50px 20px;
@@ -1202,6 +1330,35 @@ body::after {
 .print-icon {
   background: rgba(99, 102, 241, 0.15);
   color: var(--color-primary);
+}
+
+.pdf-icon {
+  background: rgba(244, 63, 94, 0.15);
+  color: #f43f5e;
+}
+
+.share-icon {
+  background: rgba(99, 102, 241, 0.15);
+  color: #6366f1;
+}
+
+.wa-icon {
+  background: rgba(37, 211, 102, 0.15);
+  color: #25d366;
+}
+
+.import-icon {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.highlight-option {
+  border: 1px solid rgba(99, 102, 241, 0.4) !important;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(59, 130, 246, 0.05)) !important;
+}
+
+.highlight-option:hover {
+  border-color: #6366f1 !important;
 }
 
 .option-details {
@@ -1573,7 +1730,9 @@ body::after {
   .app-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 14px;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
   }
 
   .header-actions {
@@ -1585,27 +1744,31 @@ body::after {
 
   .summary-cards {
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 10px;
   }
 
   .card-kpi {
-    padding: 16px;
+    padding: 14px;
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
   }
 
   .card-value {
-    font-size: 1.25rem;
+    font-size: 1.18rem;
   }
 
   .period-control-panel {
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
   }
 
   .period-tabs {
     overflow-x: auto;
     width: 100%;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .period-picker-container {
@@ -1624,6 +1787,7 @@ body::after {
 
   .toolbar-right {
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .search-input-wrapper {
@@ -1644,9 +1808,82 @@ body::after {
   }
 }
 
-@media (max-width: 480px) {
+/* Specific Mobile Phone Optimizations (< 640px) */
+@media (max-width: 640px) {
+  /* Toggle from table to modern card list */
+  .transactions-table {
+    display: none !important;
+  }
+
+  .mobile-transactions-list {
+    display: flex !important;
+  }
+
+  .transactions-table-container {
+    overflow: visible;
+  }
+
+  /* Modern Bottom Sheet Modal */
+  .app-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-radius: 22px 22px 0 0 !important;
+  }
+
+  .app-modal .modal-content,
+  .app-modal .modal-card {
+    border-radius: 22px 22px 0 0 !important;
+    border-bottom: none !important;
+    max-height: 88vh !important;
+    padding: 22px 16px calc(max(env(safe-area-inset-bottom, 0px), 16px) + 12px) !important;
+    animation: modalSlideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    position: relative;
+  }
+
+  .app-modal .modal-header {
+    position: relative;
+    padding-top: 8px;
+  }
+
+  /* Drag handle visual at top of sheet */
+  .app-modal .modal-header::before {
+    content: '';
+    display: block;
+    width: 38px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--text-faint);
+    opacity: 0.45;
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes modalSlideUpSheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 380px) {
   .summary-cards {
     grid-template-columns: 1fr;
+  }
+  
+  .card-value {
+    font-size: 1.25rem;
   }
 }
 

@@ -437,17 +437,20 @@ function renderTransactionsTable() {
   const tbody = document.getElementById('transactionsTableBody');
   const emptyState = document.getElementById('emptyState');
   const countPill = document.getElementById('filteredCountPill');
+  const mobileList = document.getElementById('mobileTransactionsList');
 
   countPill.textContent = items.length;
 
   if (items.length === 0) {
     tbody.innerHTML = '';
+    if (mobileList) mobileList.innerHTML = '';
     emptyState.classList.remove('hidden');
     return;
   }
 
   emptyState.classList.add('hidden');
 
+  // 1. Render Desktop / Tablet Table
   tbody.innerHTML = items.map(item => {
     const cat = getCategoryInfo(item.type, item.category);
     const isIncome = item.type === 'income';
@@ -495,6 +498,49 @@ function renderTransactionsTable() {
       </tr>
     `;
   }).join('');
+
+  // 2. Render Mobile Card List (< 640px)
+  if (mobileList) {
+    mobileList.innerHTML = items.map(item => {
+      const cat = getCategoryInfo(item.type, item.category);
+      const isIncome = item.type === 'income';
+      const amountClass = isIncome ? 'amount-income' : 'amount-expense';
+      const amountPrefix = isIncome ? '+ ' : '- ';
+
+      return `
+        <div class="mobile-tx-card" data-id="${item.id}">
+          <div class="mobile-tx-left">
+            <div class="mobile-tx-icon-wrap" style="background: ${cat.color}1f; color: ${cat.color};">
+              <i class="fa-solid ${cat.icon}"></i>
+            </div>
+            <div class="mobile-tx-details">
+              <div class="mobile-tx-title">${escapeHtml(item.title)}</div>
+              ${item.notes ? `<div class="mobile-tx-notes">${escapeHtml(item.notes)}</div>` : ''}
+              <div class="mobile-tx-meta">
+                <span class="mobile-tx-cat-badge">${cat.name}</span>
+                <span>•</span>
+                <span>${formatDateIndo(item.date)}</span>
+                ${item.time ? `<span>• ${item.time}</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="mobile-tx-right">
+            <div class="mobile-tx-amount ${amountClass}">
+              ${amountPrefix}${formatRupiah(item.amount)}
+            </div>
+            <div class="mobile-tx-actions">
+              <button class="action-btn edit-btn" onclick="openEditModal('${item.id}')" title="Edit Transaksi" aria-label="Edit Transaksi">
+                <i class="fa-regular fa-pen-to-square"></i>
+              </button>
+              <button class="action-btn delete-btn" onclick="confirmDelete('${item.id}')" title="Hapus Transaksi" aria-label="Hapus Transaksi">
+                <i class="fa-regular fa-trash-can"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
 }
 
 function escapeHtml(str) {
@@ -1006,16 +1052,394 @@ function showToast(message, type = 'info') {
 }
 
 // =============================================================================
-// 11. Ekspor & Unduh Data (CSV & JSON & Print)
+// 11. Ekspor, Berbagi & Cadangan Data (PDF, WhatsApp, Share API, CSV, JSON)
 // =============================================================================
 function openExportModal() {
   const modal = document.getElementById('exportModal');
-  modal.showModal();
+  if (modal) modal.showModal();
 }
 
 function closeExportModal() {
   const modal = document.getElementById('exportModal');
-  if (modal.open) modal.close();
+  if (modal && modal.open) modal.close();
+}
+
+/**
+ * Membuat dokumen PDF profesional dengan ringkasan metrik & tabel transaksi
+ */
+function generatePDFDocument() {
+  const items = getFilteredTransactions();
+  if (items.length === 0) {
+    showToast('Tidak ada transaksi untuk dicetak ke PDF', 'danger');
+    return null;
+  }
+
+  // Pastikan pustaka jsPDF tersedia
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast('Pustaka pembuat PDF belum termuat di peramban', 'danger');
+    return null;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  // Hitung metrik keuangan dari data yang sedang difilter
+  let incomeTotal = 0;
+  let incomeCount = 0;
+  let expenseTotal = 0;
+  let expenseCount = 0;
+
+  items.forEach(item => {
+    const amt = Number(item.amount) || 0;
+    if (item.type === 'income') {
+      incomeTotal += amt;
+      incomeCount++;
+    } else {
+      expenseTotal += amt;
+      expenseCount++;
+    }
+  });
+
+  const netBalance = incomeTotal - expenseTotal;
+  const periodText = document.getElementById('periodLabel')?.textContent || 'Semua Riwayat Transaksi';
+  const exportDate = new Date();
+  const exportDateStr = new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(exportDate);
+
+  // --- 1. HEADER BANNER ---
+  // Background Header: #1e1b4b (Deep Indigo)
+  doc.setFillColor(30, 27, 75);
+  doc.rect(0, 0, 210, 38, 'F');
+
+  // Vibrant accent line: #6366f1 (Indigo)
+  doc.setFillColor(99, 102, 241);
+  doc.rect(0, 38, 210, 2, 'F');
+
+  // Title: KeuanganKu
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('KeuanganKu', 14, 16);
+
+  // Subtitle
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(199, 210, 254);
+  doc.text('Laporan Catatan Arus Kas, Pemasukan & Pengeluaran', 14, 23);
+  doc.text(`Periode: ${periodText}`, 14, 29);
+
+  // Right-aligned header metadata
+  doc.setFontSize(8);
+  doc.setTextColor(224, 231, 255);
+  doc.text(`Tanggal Cetak: ${exportDateStr}`, 196, 16, { align: 'right' });
+  doc.text(`Total Catatan: ${items.length} Transaksi`, 196, 22, { align: 'right' });
+  doc.text(`Status: ${netBalance >= 0 ? 'Surplus / Cashflow Positif' : 'Defisit Pengeluaran'}`, 196, 28, { align: 'right' });
+
+  // --- 2. KPI SUMMARY BOXES ---
+  const boxY = 46;
+  const boxH = 22;
+  const boxW = 57;
+
+  // Box 1: Saldo Bersih
+  if (netBalance >= 0) {
+    doc.setFillColor(240, 253, 244);
+    doc.setDrawColor(187, 247, 208);
+  } else {
+    doc.setFillColor(254, 242, 242);
+    doc.setDrawColor(254, 202, 202);
+  }
+  doc.roundedRect(14, boxY, boxW, boxH, 2, 2, 'FD');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL SALDO BERSIH', 18, boxY + 7);
+  doc.setFontSize(11.5);
+  if (netBalance >= 0) {
+    doc.setTextColor(5, 150, 105);
+  } else {
+    doc.setTextColor(220, 38, 38);
+  }
+  doc.text(formatRupiah(netBalance), 18, boxY + 16);
+
+  // Box 2: Total Pemasukan
+  doc.setFillColor(240, 253, 244);
+  doc.setDrawColor(187, 247, 208);
+  doc.roundedRect(76, boxY, boxW, boxH, 2, 2, 'FD');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL PEMASUKAN', 80, boxY + 7);
+  doc.setFontSize(11.5);
+  doc.setTextColor(5, 150, 105);
+  doc.text(formatRupiah(incomeTotal), 80, boxY + 15);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${incomeCount} transaksi masuk`, 80, boxY + 19.5);
+
+  // Box 3: Total Pengeluaran
+  doc.setFillColor(254, 242, 242);
+  doc.setDrawColor(254, 202, 202);
+  doc.roundedRect(138, boxY, boxW, boxH, 2, 2, 'FD');
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TOTAL PENGELUARAN', 142, boxY + 7);
+  doc.setFontSize(11.5);
+  doc.setTextColor(220, 38, 38);
+  doc.text(formatRupiah(expenseTotal), 142, boxY + 15);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${expenseCount} transaksi keluar`, 142, boxY + 19.5);
+
+  // --- 3. TRANSACTIONS AUTOTABLE ---
+  const tableData = items.map((item, idx) => {
+    const cat = getCategoryInfo(item.type, item.category);
+    const dateFormatted = formatDateIndo(item.date);
+    const timeFormatted = item.time || '-';
+    const isIncome = item.type === 'income';
+    const prefix = isIncome ? '+ ' : '- ';
+    const descWithNotes = item.notes ? `${item.title}\nCatatan: ${item.notes}` : item.title;
+
+    return [
+      idx + 1,
+      `${dateFormatted}\n${timeFormatted}`,
+      cat.name,
+      descWithNotes,
+      isIncome ? 'Pemasukan' : 'Pengeluaran',
+      `${prefix}${formatRupiah(item.amount)}`
+    ];
+  });
+
+  const autoTableConfig = {
+    startY: 74,
+    head: [['No', 'Tanggal & Waktu', 'Kategori', 'Keterangan', 'Tipe', 'Nominal (Rp)']],
+    body: tableData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [79, 70, 229], // #4f46e5 Indigo
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 8.5,
+      cellPadding: 3
+    },
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2.5,
+      lineColor: [226, 232, 240],
+      lineWidth: 0.15,
+      overflow: 'linebreak'
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    columnStyles: {
+      0: { cellWidth: 10, halign: 'center' },
+      1: { cellWidth: 32 },
+      2: { cellWidth: 32 },
+      3: { cellWidth: 'auto' },
+      4: { cellWidth: 24, halign: 'center' },
+      5: { cellWidth: 34, halign: 'right', fontStyle: 'bold' }
+    },
+    didParseCell: function(data) {
+      if (data.section === 'head' && (data.column.index === 0 || data.column.index === 4)) {
+        data.cell.styles.halign = 'center';
+      }
+      if (data.section === 'head' && data.column.index === 5) {
+        data.cell.styles.halign = 'right';
+      }
+      if (data.section === 'body' && data.column.index === 5) {
+        const typeCell = data.row.raw[4];
+        if (typeCell === 'Pemasukan') {
+          data.cell.styles.textColor = [5, 150, 105];
+        } else {
+          data.cell.styles.textColor = [220, 38, 38];
+        }
+      }
+      if (data.section === 'body' && data.column.index === 4) {
+        const typeCell = data.row.raw[4];
+        if (typeCell === 'Pemasukan') {
+          data.cell.styles.textColor = [5, 150, 105];
+          data.cell.styles.fontStyle = 'bold';
+        } else {
+          data.cell.styles.textColor = [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    },
+    didDrawPage: function(data) {
+      const totalPages = doc.internal.getNumberOfPages();
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(148, 163, 184);
+
+      const footerY = doc.internal.pageSize.height - 8;
+      doc.text(
+        `KeuanganKu • Halaman ${data.pageNumber} dari ${totalPages}`,
+        14,
+        footerY
+      );
+      doc.text(
+        `Laporan Resmi KeuanganKu • Arsip Mandiri`,
+        doc.internal.pageSize.width - 14,
+        footerY,
+        { align: 'right' }
+      );
+    },
+    margin: { top: 16, left: 14, right: 14, bottom: 14 }
+  };
+
+  if (typeof doc.autoTable === 'function') {
+    doc.autoTable(autoTableConfig);
+  } else if (window.jspdfAutoTable && typeof window.jspdfAutoTable.default === 'function') {
+    window.jspdfAutoTable.default(doc, autoTableConfig);
+  } else if (window.jspdfAutoTable && typeof window.jspdfAutoTable.applyPlugin === 'function') {
+    window.jspdfAutoTable.applyPlugin(jsPDF);
+    doc.autoTable(autoTableConfig);
+  } else {
+    console.error('Plugin autoTable tidak ditemukan.');
+    showToast('Gagal memuat plugin tabel PDF', 'danger');
+    return null;
+  }
+
+  return doc;
+}
+
+/**
+ * Unduh Laporan PDF ke perangkat
+ */
+function exportToPDF() {
+  try {
+    const doc = generatePDFDocument();
+    if (!doc) return;
+    const filename = `KeuanganKu_Laporan_${formatDateISO(new Date())}.pdf`;
+    doc.save(filename);
+    closeExportModal();
+    showToast('Laporan PDF berhasil diunduh!', 'success');
+  } catch (err) {
+    console.error('Gagal membuat PDF:', err);
+    showToast('Gagal membuat PDF: ' + err.message, 'danger');
+  }
+}
+
+/**
+ * Bagikan berkas PDF langsung ke WhatsApp, Telegram, Gmail, AirDrop, dll via Web Share API
+ */
+async function sharePDFToApps() {
+  try {
+    const items = getFilteredTransactions();
+    if (items.length === 0) {
+      showToast('Tidak ada data transaksi untuk dibagikan', 'danger');
+      return;
+    }
+
+    showToast('Menyiapkan dokumen PDF...', 'info');
+    const doc = generatePDFDocument();
+    if (!doc) return;
+
+    const filename = `KeuanganKu_Laporan_${formatDateISO(new Date())}.pdf`;
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+    // Periksa apakah peramban mendukung berbagi berkas via Web Share API
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Laporan Keuangan - KeuanganKu',
+          text: `Berikut adalah laporan keuangan KeuanganKu (${items.length} transaksi).`
+        });
+        closeExportModal();
+        showToast('Laporan PDF berhasil dibagikan!', 'success');
+        return;
+      } catch (shareErr) {
+        if (shareErr.name === 'AbortError') {
+          // Pengguna menutup lembar berbagi
+          return;
+        }
+        console.warn('Gagal membagikan berkas via navigator.share:', shareErr);
+      }
+    }
+
+    // Fallback jika tidak didukung: simpan file ke perangkat
+    doc.save(filename);
+    closeExportModal();
+    showToast('Perangkat tidak mendukung bagikan berkas langsung. Dokumen PDF telah disimpan ke unduhan.', 'info');
+  } catch (err) {
+    console.error('Kesalahan saat membagikan PDF:', err);
+    showToast('Gagal membagikan PDF: ' + err.message, 'danger');
+  }
+}
+
+/**
+ * Bagikan Ringkasan Teks ke WhatsApp atau Salin Teks
+ */
+function shareTextSummary() {
+  const items = getFilteredTransactions();
+  if (items.length === 0) {
+    showToast('Tidak ada data transaksi untuk dibagikan', 'danger');
+    return;
+  }
+
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+  items.forEach(i => {
+    if (i.type === 'income') incomeTotal += (Number(i.amount) || 0);
+    if (i.type === 'expense') expenseTotal += (Number(i.amount) || 0);
+  });
+  const net = incomeTotal - expenseTotal;
+  const periodLabel = document.getElementById('periodLabel')?.textContent || 'Semua Riwayat';
+
+  let text = `📊 *RINGKASAN LAPORAN KEUANGANKU*\n`;
+  text += `📅 *Periode:* ${periodLabel}\n`;
+  text += `🕒 *Dibuat:* ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date())}\n\n`;
+  text += `💰 *Saldo Bersih:* ${formatRupiah(net)} (${net >= 0 ? 'Surplus / Positif' : 'Defisit / Negatif'})\n`;
+  text += `🟢 *Total Pemasukan:* ${formatRupiah(incomeTotal)}\n`;
+  text += `🔴 *Total Pengeluaran:* ${formatRupiah(expenseTotal)}\n\n`;
+  text += `📝 *Catatan Transaksi Terakhir (${Math.min(5, items.length)} dari ${items.length}):*\n`;
+
+  items.slice(0, 5).forEach((item, idx) => {
+    const sign = item.type === 'income' ? '🟢 +' : '🔴 -';
+    text += `${idx + 1}. ${formatDateIndo(item.date)} | ${item.title} (${sign}${formatRupiah(item.amount)})\n`;
+  });
+
+  if (items.length > 5) {
+    text += `... dan ${items.length - 5} transaksi lainnya.\n`;
+  }
+  text += `\n_Dicatat & dikelola mandiri via Aplikasi KeuanganKu_`;
+
+  if (navigator.share) {
+    navigator.share({
+      title: 'Ringkasan KeuanganKu',
+      text: text
+    }).then(() => {
+      closeExportModal();
+      showToast('Ringkasan berhasil dibagikan!', 'success');
+    }).catch(err => {
+      if (err.name !== 'AbortError') {
+        openWhatsAppDirect(text);
+      }
+    });
+  } else {
+    openWhatsAppDirect(text);
+  }
+}
+
+function openWhatsAppDirect(text) {
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+  closeExportModal();
+  showToast('Membuka WhatsApp...', 'success');
 }
 
 function exportToCSV() {
@@ -1066,7 +1490,71 @@ function exportToJSON() {
   a.click();
   URL.revokeObjectURL(url);
   closeExportModal();
-  showToast('File JSON cadangan berhasil diunduh', 'success');
+  showToast('Berkas cadangan JSON berhasil diunduh', 'success');
+}
+
+/**
+ * Pulihkan & Impor Data Transaksi dari Berkas Cadangan JSON
+ */
+function handleImportJsonFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) {
+        throw new Error('Format berkas tidak valid. Berkas JSON harus berupa daftar transaksi.');
+      }
+
+      const validItems = data.filter(item => item && item.id && item.type && item.amount !== undefined && item.date);
+      if (validItems.length === 0) {
+        throw new Error('Tidak ditemukan catatan transaksi yang valid dalam berkas cadangan ini.');
+      }
+
+      const mergeChoice = confirm(
+        `Ditemukan ${validItems.length} transaksi di berkas cadangan.\n\n` +
+        `• Klik "OK" untuk MENGGABUNGKAN (Merge) dengan data yang ada sekarang.\n` +
+        `• Klik "Batal" jika ingin memilih Opsi Menimpa Seluruh Data atau Batal.`
+      );
+
+      let resultData = [];
+      if (mergeChoice) {
+        const map = new Map();
+        state.transactions.forEach(t => map.set(t.id, t));
+        validItems.forEach(t => map.set(t.id, t));
+        resultData = Array.from(map.values());
+      } else {
+        const overwriteChoice = confirm(
+          `Apakah Anda ingin MENIMPA SELURUH DATA yang ada saat ini dengan data dari berkas cadangan (${validItems.length} transaksi)?\n\n` +
+          `PERINGATAN: Semua catatan transaksi yang ada saat ini akan digantikan.`
+        );
+        if (overwriteChoice) {
+          resultData = validItems;
+        } else {
+          showToast('Impor berkas JSON dibatalkan', 'info');
+          event.target.value = '';
+          return;
+        }
+      }
+
+      saveTransactions(resultData);
+      refreshUI();
+      closeExportModal();
+      showToast(`Berhasil memulihkan ${validItems.length} transaksi cadangan!`, 'success');
+    } catch (err) {
+      console.error('Gagal mengimpor JSON:', err);
+      showToast('Gagal memulihkan data: ' + err.message, 'danger');
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.onerror = function() {
+    showToast('Gagal membaca berkas cadangan', 'danger');
+    event.target.value = '';
+  };
+  reader.readAsText(file);
 }
 
 function printReport() {
@@ -1252,12 +1740,40 @@ function setupEventListeners() {
     }
   });
 
-  // Export Modal
-  document.getElementById('exportBtn').addEventListener('click', openExportModal);
-  document.getElementById('closeExportModalBtn').addEventListener('click', closeExportModal);
-  document.getElementById('exportCsvBtn').addEventListener('click', exportToCSV);
-  document.getElementById('exportJsonBtn').addEventListener('click', exportToJSON);
-  document.getElementById('printReportBtn').addEventListener('click', printReport);
+  // Export & Sharing Modal Listeners
+  const exportBtn = document.getElementById('exportBtn');
+  if (exportBtn) exportBtn.addEventListener('click', openExportModal);
+
+  const quickShareBtn = document.getElementById('quickShareBtn');
+  if (quickShareBtn) quickShareBtn.addEventListener('click', openExportModal);
+
+  const closeExportModalBtn = document.getElementById('closeExportModalBtn');
+  if (closeExportModalBtn) closeExportModalBtn.addEventListener('click', closeExportModal);
+
+  const exportPdfBtn = document.getElementById('exportPdfBtn');
+  if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportToPDF);
+
+  const sharePdfBtn = document.getElementById('sharePdfBtn');
+  if (sharePdfBtn) sharePdfBtn.addEventListener('click', sharePDFToApps);
+
+  const shareWhatsappBtn = document.getElementById('shareWhatsappBtn');
+  if (shareWhatsappBtn) shareWhatsappBtn.addEventListener('click', shareTextSummary);
+
+  const exportJsonBtn = document.getElementById('exportJsonBtn');
+  if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportToJSON);
+
+  const importJsonBtn = document.getElementById('importJsonBtn');
+  const importJsonInput = document.getElementById('importJsonInput');
+  if (importJsonBtn && importJsonInput) {
+    importJsonBtn.addEventListener('click', () => importJsonInput.click());
+    importJsonInput.addEventListener('change', handleImportJsonFile);
+  }
+
+  const exportCsvBtn = document.getElementById('exportCsvBtn');
+  if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportToCSV);
+
+  const printReportBtn = document.getElementById('printReportBtn');
+  if (printReportBtn) printReportBtn.addEventListener('click', printReport);
 
   // Theme Toggle
   document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);

@@ -30,6 +30,12 @@ if (fs.existsSync(iconsSrc)) {
   fs.cpSync(iconsSrc, iconsDest, { recursive: true });
 }
 
+const vendorSrc = path.join(__dirname, 'vendor');
+const vendorDest = path.join(wwwDir, 'vendor');
+if (fs.existsSync(vendorSrc)) {
+  fs.cpSync(vendorSrc, vendorDest, { recursive: true });
+}
+
 // 2. Sync Android Launcher Icons if android project exists
 const resDir = path.join(__dirname, 'android', 'app', 'src', 'main', 'res');
 if (fs.existsSync(resDir)) {
