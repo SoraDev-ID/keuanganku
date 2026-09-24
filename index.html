@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>KeuanganKu - Catatan Pengeluaran & Pemasukan</title>
+  <meta name="description" content="Aplikasi catatan keuangan harian, mingguan, dan bulanan lengkap dengan tanggal, visualisasi grafik, dan statistik pemasukan & pengeluaran.">
+  
+  <!-- Theme Color -->
+  <meta name="theme-color" content="#0b0f17" id="metaThemeColor">
+
+  <!-- Web App Manifest -->
+  <link rel="manifest" href="manifest.webmanifest">
+
+  <!-- iOS Safari & Mobile Web App Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="KeuanganKu">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="KeuanganKu">
+  <meta name="format-detection" content="telephone=no">
+
+  <!-- Icons -->
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon.png">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons for crisp UI icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js for interactive analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div>
+          <h1 class="brand-title">Keuangan<span>Ku</span></h1>
+          <p class="brand-subtitle">Kelola Arus Kas & Rencana Finansial</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn btn-icon" title="Ubah Mode Gelap/Terang" aria-label="Ganti Tema">
+          <i class="fa-solid fa-moon"></i>
+        </button>
+        <button id="installAppBtn" class="btn btn-install hidden" title="Install Aplikasi di HP" aria-label="Install Aplikasi">
+          <i class="fa-solid fa-mobile-screen-button"></i> <span>Install App</span>
+        </button>
+        <button id="exportBtn" class="btn btn-secondary" title="Ekspor Data">
+          <i class="fa-solid fa-file-export"></i> <span>Ekspor</span>
+        </button>
+        <button id="openAddModalBtn" class="btn btn-primary" title="Tambah Transaksi Baru">
+          <i class="fa-solid fa-plus"></i> <span>Catat Transaksi</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Offline Notification Banner -->
+    <div id="offlineIndicator" class="offline-indicator hidden">
+      <i class="fa-solid fa-wifi-slash"></i> <span>Anda sedang offline. Semua transaksi tetap tersimpan dengan aman di perangkat ini.</span>
+    </div>
+
+    <!-- PWA Install Banner for Mobile -->
+    <aside id="pwaInstallBanner" class="pwa-install-banner hidden">
+      <div class="banner-content">
+        <div class="banner-icon">
+          <i class="fa-solid fa-wallet"></i>
+        </div>
+        <div class="banner-text">
+          <strong>Pasang Aplikasi KeuanganKu</strong>
+          <p>Akses cepat dari layar utama HP & bisa dipakai tanpa internet.</p>
+        </div>
+      </div>
+      <div class="banner-actions">
+        <button id="bannerInstallBtn" class="btn btn-install-sm">
+          <i class="fa-solid fa-download"></i> Pasang
+        </button>
+        <button id="bannerDismissBtn" class="btn btn-icon-sm" aria-label="Tutup Banner">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-main">
+      <!-- Financial Summary Cards -->
+      <section class="summary-cards" aria-label="Ringkasan Keuangan">
+        <div class="card card-kpi balance-card">
+          <div class="card-icon-wrapper balance-icon">
+            <i class="fa-solid fa-scale-balanced"></i>
+          </div>
+          <div class="card-info">
+            <span class="card-label">Total Saldo Bersih</span>
+            <h2 class="card-value" id="netBalanceValue">Rp 0</h2>
+            <span class="card-badge" id="balanceStatusBadge">Cashflow Positif</span>
+          </div>
+        </div>
+
+        <div class="card card-kpi income-card">
+          <div class="card-icon-wrapper income-icon">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+          </div>
+          <div class="card-info">
+            <span class="card-label">Total Pemasukan</span>
+            <h2 class="card-value text-income" id="totalIncomeValue">Rp 0</h2>
+            <span class="card-subtext" id="incomeCountText">0 transaksi</span>
+          </div>
+        </div>
+
+        <div class="card card-kpi expense-card">
+          <div class="card-icon-wrapper expense-icon">
+            <i class="fa-solid fa-arrow-trend-down"></i>
+          </div>
+          <div class="card-info">
+            <span class="card-label">Total Pengeluaran</span>
+            <h2 class="card-value text-expense" id="totalExpenseValue">Rp 0</h2>
+            <span class="card-subtext" id="expenseCountText">0 transaksi</span>
+          </div>
+        </div>
+
+        <div class="card card-kpi savings-card">
+          <div class="card-icon-wrapper savings-icon">
+            <i class="fa-solid fa-piggy-bank"></i>
+          </div>
+          <div class="card-info">
+            <span class="card-label">Rasio Tabungan</span>
+            <h2 class="card-value text-savings" id="savingsRateValue">0%</h2>
+            <span class="card-subtext" id="savingsHelpText">dari total pemasukan</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Period Filter & Control Bar -->
+      <section class="period-control-panel card">
+        <div class="period-tabs" role="tablist" aria-label="Pilih Rentang Waktu">
+          <button class="tab-btn active" role="tab" aria-selected="true" data-period="all">
+            <i class="fa-solid fa-globe"></i> Semua
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" data-period="daily">
+            <i class="fa-solid fa-calendar-day"></i> Harian
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" data-period="weekly">
+            <i class="fa-solid fa-calendar-week"></i> Mingguan
+          </button>
+          <button class="tab-btn" role="tab" aria-selected="false" data-period="monthly">
+            <i class="fa-solid fa-calendar-days"></i> Bulanan
+          </button>
+        </div>
+
+        <!-- Dynamic Date Navigation Selector -->
+        <div class="period-picker-container" id="periodPickerContainer">
+          <button id="prevPeriodBtn" class="btn btn-icon btn-sm" title="Periode Sebelumnya">
+            <i class="fa-solid fa-chevron-left"></i>
+          </button>
+          <div class="period-display">
+            <i class="fa-regular fa-calendar"></i>
+            <span id="periodLabel">Semua Riwayat Transaksi</span>
+            <!-- Hidden inputs dynamically updated depending on mode -->
+            <input type="date" id="datePickerDaily" class="hidden-picker" aria-label="Pilih Tanggal">
+            <input type="month" id="datePickerMonthly" class="hidden-picker" aria-label="Pilih Bulan">
+          </div>
+          <button id="nextPeriodBtn" class="btn btn-icon btn-sm" title="Periode Berikutnya">
+            <i class="fa-solid fa-chevron-right"></i>
+          </button>
+          <button id="resetPeriodBtn" class="btn btn-sm btn-outline" title="Kembali ke Hari Ini">
+            Hari Ini
+          </button>
+        </div>
+      </section>
+
+      <!-- Analytics Charts Section -->
+      <section class="charts-section">
+        <!-- Cashflow Trend Chart -->
+        <div class="card chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title"><i class="fa-solid fa-chart-column"></i> Perbandingan Arus Kas</h3>
+              <p class="chart-subtitle" id="cashflowChartSubtitle">Pemasukan vs Pengeluaran Periode Ini</p>
+            </div>
+          </div>
+          <div class="chart-body">
+            <canvas id="cashflowChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Expense Category Breakdown Chart -->
+        <div class="card chart-card">
+          <div class="chart-header">
+            <div>
+              <h3 class="chart-title"><i class="fa-solid fa-chart-pie"></i> Komposisi Pengeluaran</h3>
+              <p class="chart-subtitle">Distribusi Berdasarkan Kategori</p>
+            </div>
+          </div>
+          <div class="chart-body chart-body-pie">
+            <canvas id="categoryChart"></canvas>
+            <div id="noExpenseNotice" class="empty-chart-notice hidden">
+              <i class="fa-solid fa-receipt"></i>
+              <p>Belum ada pengeluaran pada periode ini</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Transactions List & Filter Area -->
+      <section class="transactions-section card">
+        <div class="section-toolbar">
+          <div class="toolbar-left">
+            <h3 class="section-title">
+              <i class="fa-solid fa-list-check"></i> Daftar Transaksi 
+              <span class="count-pill" id="filteredCountPill">0</span>
+            </h3>
+          </div>
+
+          <div class="toolbar-right">
+            <!-- Search Input -->
+            <div class="search-input-wrapper">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="text" id="searchInput" placeholder="Cari keterangan, toko, catatan..." aria-label="Cari transaksi">
+              <button id="clearSearchBtn" class="clear-btn hidden" aria-label="Hapus pencarian">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <!-- Type Filter Dropdown -->
+            <select id="typeFilter" class="form-select" aria-label="Filter Tipe">
+              <option value="all">Semua Tipe</option>
+              <option value="expense">Pengeluaran Saja</option>
+              <option value="income">Pemasukan Saja</option>
+            </select>
+
+            <!-- Category Filter Dropdown -->
+            <select id="categoryFilter" class="form-select" aria-label="Filter Kategori">
+              <option value="all">Semua Kategori</option>
+              <!-- Populated dynamically via JS -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Transaction Table / List -->
+        <div class="transactions-table-container">
+          <table class="transactions-table">
+            <thead>
+              <tr>
+                <th>Tanggal & Waktu</th>
+                <th>Kategori</th>
+                <th>Keterangan</th>
+                <th>Tipe</th>
+                <th class="text-right">Nominal</th>
+                <th class="text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTableBody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="empty-state hidden">
+            <div class="empty-state-icon">
+              <i class="fa-solid fa-folder-open"></i>
+            </div>
+            <h4>Tidak ada transaksi yang cocok</h4>
+            <p>Silakan sesuaikan filter periode, atau tambahkan catatan transaksi baru.</p>
+            <button class="btn btn-primary btn-sm" id="emptyAddBtn">
+              <i class="fa-solid fa-plus"></i> Tambah Transaksi
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <p><strong>KeuanganKu</strong> &copy; 2026. Data tersimpan aman di peramban (LocalStorage).</p>
+      </div>
+      <div class="footer-right">
+        <button id="resetDemoDataBtn" class="btn-link" title="Muat Ulang Contoh Data">
+          <i class="fa-solid fa-rotate-left"></i> Reset Data Contoh
+        </button>
+        <span class="divider">|</span>
+        <button id="clearAllDataBtn" class="btn-link text-danger" title="Hapus Semua Data">
+          <i class="fa-solid fa-trash-can"></i> Hapus Semua
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Modal / Dialog: Tambah / Edit Transaksi -->
+  <dialog id="transactionModal" class="app-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge" id="modalTypeBadge">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+          <div>
+            <h3 id="modalTitle">Tambah Transaksi</h3>
+            <p class="modal-subtitle">Isi rincian pengeluaran atau pemasukan Anda</p>
+          </div>
+        </div>
+        <button id="closeModalBtn" class="btn-close" aria-label="Tutup Dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="transactionForm" method="dialog">
+        <input type="hidden" id="transactionId">
+
+        <!-- Type Selector (Income vs Expense) -->
+        <div class="form-group">
+          <label class="form-label">Tipe Transaksi <span class="required">*</span></label>
+          <div class="type-segmented-control">
+            <label class="segment-option segment-expense">
+              <input type="radio" name="transactionType" value="expense" checked>
+              <span class="segment-btn">
+                <i class="fa-solid fa-arrow-down"></i> Pengeluaran
+              </span>
+            </label>
+            <label class="segment-option segment-income">
+              <input type="radio" name="transactionType" value="income">
+              <span class="segment-btn">
+                <i class="fa-solid fa-arrow-up"></i> Pemasukan
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Date & Time Input (Lengkap dengan Tanggal) -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="formDate" class="form-label">
+              <i class="fa-regular fa-calendar"></i> Tanggal <span class="required">*</span>
+            </label>
+            <input type="date" id="formDate" class="form-input" required>
+          </div>
+          <div class="form-group flex-1">
+            <label for="formTime" class="form-label">
+              <i class="fa-regular fa-clock"></i> Waktu
+            </label>
+            <input type="time" id="formTime" class="form-input">
+          </div>
+        </div>
+
+        <!-- Amount / Nominal -->
+        <div class="form-group">
+          <label for="formAmount" class="form-label">
+            <i class="fa-solid fa-money-bill-wave"></i> Jumlah Nominal (Rp) <span class="required">*</span>
+          </label>
+          <div class="input-prefix-wrapper">
+            <span class="input-prefix">Rp</span>
+            <input type="text" id="formAmount" class="form-input form-input-lg" placeholder="0" inputmode="numeric" required>
+          </div>
+          <small class="helper-text" id="amountSpelledOut"></small>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+          <label for="formCategory" class="form-label">
+            <i class="fa-solid fa-tag"></i> Kategori <span class="required">*</span>
+          </label>
+          <select id="formCategory" class="form-input form-select" required>
+            <!-- Populated dynamically based on Expense or Income -->
+          </select>
+        </div>
+
+        <!-- Description / Title -->
+        <div class="form-group">
+          <label for="formTitle" class="form-label">
+            <i class="fa-solid fa-pen-to-square"></i> Keterangan / Deskripsi <span class="required">*</span>
+          </label>
+          <input type="text" id="formTitle" class="form-input" placeholder="Contoh: Belanja bahan masakan di supermarket" required>
+        </div>
+
+        <!-- Notes (Optional) -->
+        <div class="form-group">
+          <label for="formNotes" class="form-label">
+            <i class="fa-regular fa-note-sticky"></i> Catatan Tambahan (Opsional)
+          </label>
+          <textarea id="formNotes" class="form-input form-textarea" rows="2" placeholder="Catatan opsional (metode bayar, rekanan, nota, dll)"></textarea>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="modal-footer">
+          <button type="button" id="cancelModalBtn" class="btn btn-secondary">Batal</button>
+          <button type="submit" id="saveTransactionBtn" class="btn btn-primary">
+            <i class="fa-solid fa-check"></i> Simpan Catatan
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal / Dialog: Ekspor & Laporan -->
+  <dialog id="exportModal" class="app-modal">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge export-badge">
+            <i class="fa-solid fa-file-export"></i>
+          </div>
+          <div>
+            <h3>Ekspor & Unduh Data</h3>
+            <p class="modal-subtitle">Pilih format unduhan data transaksi</p>
+          </div>
+        </div>
+        <button id="closeExportModalBtn" class="btn-close" aria-label="Tutup Dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="export-options-list">
+        <button id="exportCsvBtn" class="export-option-card">
+          <div class="option-icon csv-icon"><i class="fa-solid fa-file-csv"></i></div>
+          <div class="option-details">
+            <h4>Format CSV (.csv)</h4>
+            <p>Bisa dibuka di Microsoft Excel, Google Sheets, atau aplikasi spreadsheet lainnya.</p>
+          </div>
+          <i class="fa-solid fa-download download-arrow"></i>
+        </button>
+
+        <button id="exportJsonBtn" class="export-option-card">
+          <div class="option-icon json-icon"><i class="fa-solid fa-file-code"></i></div>
+          <div class="option-details">
+            <h4>Format JSON (.json)</h4>
+            <p>Cadangan data lengkap untuk arsip teknis atau transfer data aplikasi.</p>
+          </div>
+          <i class="fa-solid fa-download download-arrow"></i>
+        </button>
+
+        <button id="printReportBtn" class="export-option-card">
+          <div class="option-icon print-icon"><i class="fa-solid fa-print"></i></div>
+          <div class="option-details">
+            <h4>Cetak / Simpan PDF</h4>
+            <p>Tampilan rapi khusus untuk cetak printer fisik atau Simpan sebagai PDF.</p>
+          </div>
+          <i class="fa-solid fa-arrow-up-right-from-square download-arrow"></i>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal Panduan Install iOS Safari -->
+  <dialog id="iosInstallModal" class="app-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge ios-badge">
+            <i class="fa-brands fa-apple"></i>
+          </div>
+          <div>
+            <h3 class="modal-title">Pasang di iPhone / iPad</h3>
+            <p class="modal-subtitle">Cara install aplikasi ke Layar Utama via Safari</p>
+          </div>
+        </div>
+        <button id="closeIosInstallModalBtn" class="btn-close" aria-label="Tutup Dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="ios-install-steps">
+        <div class="ios-step-item">
+          <div class="step-num">1</div>
+          <div class="step-desc">
+            <p>Pastikan Anda membuka website ini menggunakan browser bawaan <strong>Safari</strong>.</p>
+          </div>
+        </div>
+        <div class="ios-step-item">
+          <div class="step-num">2</div>
+          <div class="step-desc">
+            <p>Ketuk tombol <strong>Bagikan (Share)</strong> <i class="fa-solid fa-arrow-up-from-bracket icon-highlight"></i> pada bilah menu di bawah layar.</p>
+          </div>
+        </div>
+        <div class="ios-step-item">
+          <div class="step-num">3</div>
+          <div class="step-desc">
+            <p>Gulir ke bawah dan pilih opsi <strong>"Tambah ke Layar Utama" (Add to Home Screen)</strong> <i class="fa-regular fa-square-plus icon-highlight"></i>.</p>
+          </div>
+        </div>
+        <div class="ios-step-item">
+          <div class="step-num">4</div>
+          <div class="step-desc">
+            <p>Ketuk tombol <strong>"Tambah" (Add)</strong> di pojok kanan atas. Aplikasi KeuanganKu akan langsung terpasang di Homescreen Anda!</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top: 24px;">
+        <button id="dismissIosModalBtn" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-check"></i> <span>Saya Mengerti</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Floating Action Button for Mobile -->
+  <button id="fabAddBtn" class="fab-btn" aria-label="Tambah Transaksi Baru">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>

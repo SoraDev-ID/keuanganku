@@ -1,0 +1,38 @@
+{
+  "name": "keuanganku",
+  "version": "1.0.0",
+  "description": "KeuanganKu - Aplikasi Catatan Pengeluaran & Pemasukan (PWA, Android & iOS)",
+  "main": "app.js",
+  "scripts": {
+    "start": "npx serve . -l 3000",
+    "cap:sync": "cap sync",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios",
+    "cap:build:android": "cap build android",
+    "generate:icons": "node generate-icons.js"
+  },
+  "keywords": [
+    "pwa",
+    "android",
+    "ios",
+    "financial-tracker",
+    "offline-first",
+    "capacitor"
+  ],
+  "author": "KeuanganKu Team",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@resvg/resvg-js": "^2.6.2"
+  }
+}
