@@ -444,29 +444,39 @@
           <div class="option-icon pdf-icon"><i class="fa-solid fa-file-pdf"></i></div>
           <div class="option-details">
             <h4>Unduh Laporan PDF (.pdf)</h4>
-            <p>Laporan resmi siap cetak & arsip dengan ringkasan saldo & tabel berwarna.</p>
+            <p>Simpan laporan resmi ke folder Dokumen/KeuanganKu dengan tabel dan ringkasan saldo.</p>
           </div>
           <i class="fa-solid fa-download download-arrow"></i>
         </button>
 
-        <!-- Bagikan PDF ke Aplikasi Lain (WhatsApp, Telegram, dll) -->
+        <!-- Bagikan PDF (WhatsApp, Drive, dll) -->
         <button id="sharePdfBtn" class="export-option-card">
           <div class="option-icon share-icon"><i class="fa-solid fa-share-nodes"></i></div>
           <div class="option-details">
-            <h4>Bagikan PDF ke Aplikasi Lain</h4>
-            <p>Kirim langsung berkas PDF ke WhatsApp, Telegram, Gmail, AirDrop, atau Drive.</p>
+            <h4>Bagikan Format PDF (.pdf)</h4>
+            <p>Bagikan file PDF ke WhatsApp, Telegram, Google Drive, atau aplikasi lainnya.</p>
           </div>
           <i class="fa-solid fa-arrow-up-right-from-square download-arrow"></i>
         </button>
 
-        <!-- Bagikan Ringkasan WhatsApp / Chat -->
-        <button id="shareWhatsappBtn" class="export-option-card">
-          <div class="option-icon wa-icon"><i class="fa-brands fa-whatsapp"></i></div>
+        <!-- Bagikan Ringkasan Teks (WhatsApp, Chat, dll) -->
+        <button id="shareTextBtn" class="export-option-card">
+          <div class="option-icon txt-icon"><i class="fa-solid fa-file-lines"></i></div>
           <div class="option-details">
-            <h4>Bagikan Ringkasan ke WhatsApp</h4>
-            <p>Kirim rangkuman saldo, pemasukan & pengeluaran dalam format teks rapi.</p>
+            <h4>Bagikan Format Teks (.txt)</h4>
+            <p>Bagikan ringkasan arus kas sebagai teks atau berkas .txt ke WhatsApp / aplikasi chat.</p>
           </div>
           <i class="fa-solid fa-paper-plane download-arrow"></i>
+        </button>
+
+        <!-- Format CSV Spreadsheet -->
+        <button id="exportCsvBtn" class="export-option-card">
+          <div class="option-icon csv-icon"><i class="fa-solid fa-file-csv"></i></div>
+          <div class="option-details">
+            <h4>Format CSV Spreadsheet (.csv)</h4>
+            <p>Simpan data dengan BOM UTF-8, dapat dibuka langsung di Microsoft Excel atau Sheets.</p>
+          </div>
+          <i class="fa-solid fa-download download-arrow"></i>
         </button>
 
         <!-- Cadangkan File JSON -->
@@ -474,9 +484,19 @@
           <div class="option-icon json-icon"><i class="fa-solid fa-file-arrow-down"></i></div>
           <div class="option-details">
             <h4>Cadangkan Data (.json)</h4>
-            <p>Simpan salinan seluruh transaksi ke file untuk arsip atau transfer ke HP baru.</p>
+            <p>Simpan berkas cadangan seluruh transaksi ke folder Dokumen/KeuanganKu/.</p>
           </div>
           <i class="fa-solid fa-download download-arrow"></i>
+        </button>
+
+        <!-- Simpan ke Google Drive / Bagikan Cadangan JSON -->
+        <button id="shareJsonBtn" class="export-option-card">
+          <div class="option-icon drive-icon"><i class="fa-brands fa-google-drive"></i></div>
+          <div class="option-details">
+            <h4>Simpan ke Google Drive / Bagikan (.json)</h4>
+            <p>Buka share sheet untuk mengunggah cadangan JSON langsung ke Google Drive atau email.</p>
+          </div>
+          <i class="fa-solid fa-cloud-arrow-up download-arrow"></i>
         </button>
 
         <!-- Pulihkan / Impor File JSON -->
@@ -490,22 +510,12 @@
         </button>
         <input type="file" id="importJsonInput" accept=".json,application/json" style="display:none">
 
-        <!-- Ekspor CSV Spreadsheet -->
-        <button id="exportCsvBtn" class="export-option-card">
-          <div class="option-icon csv-icon"><i class="fa-solid fa-file-csv"></i></div>
-          <div class="option-details">
-            <h4>Format CSV Spreadsheet (.csv)</h4>
-            <p>Bisa dibuka di Microsoft Excel, Google Sheets, atau aplikasi spreadsheet.</p>
-          </div>
-          <i class="fa-solid fa-download download-arrow"></i>
-        </button>
-
-        <!-- Cetak Printer Fisik -->
+        <!-- Cetak Printer Fisik / PDF -->
         <button id="printReportBtn" class="export-option-card">
           <div class="option-icon print-icon"><i class="fa-solid fa-print"></i></div>
           <div class="option-details">
-            <h4>Cetak Printer Fisik</h4>
-            <p>Buka dialog printer untuk cetak langsung ke kertas.</p>
+            <h4>Cetak Laporan Fisik / PDF</h4>
+            <p>Kirim langsung dokumen laporan ke printer perangkat via PrintManager Android.</p>
           </div>
           <i class="fa-solid fa-print download-arrow"></i>
         </button>

@@ -1343,17 +1343,300 @@ function generatePDFDocument() {
   return doc;
 }
 
+// =============================================================================
+// 11. Centralized File Helpers, Export, Sharing & Print (Capacitor & Web)
+// =============================================================================
+
 /**
- * Unduh Laporan PDF ke perangkat
+ * Deteksi apakah aplikasi berjalan di platform native Capacitor (Android/iOS)
  */
-function exportToPDF() {
+function isNativePlatform() {
+  return !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+}
+
+function getFilesystemPlugin() {
+  return window.Capacitor?.Plugins?.Filesystem || null;
+}
+
+function getSharePlugin() {
+  return window.Capacitor?.Plugins?.Share || null;
+}
+
+function getPdfPrintPlugin() {
+  return window.Capacitor?.Plugins?.PdfPrint || null;
+}
+
+/**
+ * Konversi string base64 menjadi Blob biner
+ */
+function base64ToBlob(base64, mimeType = 'application/octet-stream') {
+  const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+  const byteCharacters = atob(cleanBase64);
+  const byteArrays = [];
+  const sliceSize = 512;
+
+  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    const slice = byteCharacters.slice(offset, offset + sliceSize);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    byteArrays.push(new Uint8Array(byteNumbers));
+  }
+
+  return new Blob(byteArrays, { type: mimeType });
+}
+
+/**
+ * Unduh berkas di browser biasa melalui tautan anchor virtual
+ */
+function downloadBlobInBrowser(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
+ * Memeriksa dan meminta izin penyimpanan (khususnya untuk Android <= 9)
+ */
+async function ensureStoragePermissions(Filesystem) {
+  try {
+    if (typeof Filesystem.checkPermissions === 'function') {
+      const status = await Filesystem.checkPermissions();
+      if (status.publicStorage !== 'granted') {
+        if (typeof Filesystem.requestPermissions === 'function') {
+          await Filesystem.requestPermissions();
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Pemeriksaan izin penyimpanan dilewati:', err);
+  }
+}
+
+/**
+ * Helper terpusat untuk menyimpan berkas
+ * - Di Android native: Simpan ke Documents/KeuanganKu/ (Directory.Documents, recursive: true)
+ *   Jika berhasil: tampilkan toast "Tersimpan di Dokumen/KeuanganKu/namafile"
+ *   Jika gagal (izin/scoped storage): fallback tulis ke Directory.Cache lalu buka share sheet via Share.share({ files: [uri] })
+ * - Di browser: fallback unduh standar
+ */
+async function saveFile(filename, data, mime, options = {}) {
+  const isBase64 = !!options.base64;
+
+  // 1. Fallback browser biasa
+  if (!isNativePlatform()) {
+    try {
+      const blob = isBase64 ? base64ToBlob(data, mime) : new Blob([data], { type: mime });
+      downloadBlobInBrowser(blob, filename);
+      showToast(`Berkas ${filename} berhasil diunduh!`, 'success');
+      return { success: true, method: 'browser-download' };
+    } catch (err) {
+      console.error('Gagal mengunduh berkas di browser:', err);
+      showToast('Gagal mengunduh berkas: ' + err.message, 'danger');
+      return { success: false, error: err };
+    }
+  }
+
+  // 2. Native Capacitor
+  const Filesystem = getFilesystemPlugin();
+  const Share = getSharePlugin();
+
+  if (!Filesystem) {
+    console.warn('Plugin Filesystem tidak tersedia, fallback ke peramban');
+    const blob = isBase64 ? base64ToBlob(data, mime) : new Blob([data], { type: mime });
+    downloadBlobInBrowser(blob, filename);
+    showToast(`Berkas ${filename} berhasil diunduh!`, 'success');
+    return { success: true, method: 'browser-fallback' };
+  }
+
+  let fileData = data;
+  if (isBase64 && typeof data === 'string' && data.includes(',')) {
+    fileData = data.split(',')[1];
+  }
+
+  // Minta izin jika diperlukan pada Android lawas
+  await ensureStoragePermissions(Filesystem);
+
+  const relativeDocPath = `KeuanganKu/${filename}`;
+
+  try {
+    const writeOptions = {
+      path: relativeDocPath,
+      data: fileData,
+      directory: 'DOCUMENTS',
+      recursive: true
+    };
+    if (!isBase64) {
+      writeOptions.encoding = 'utf8';
+    }
+
+    await Filesystem.writeFile(writeOptions);
+
+    showToast(`Tersimpan di Dokumen/KeuanganKu/${filename}`, 'success');
+    return { success: true, method: 'documents', path: relativeDocPath };
+  } catch (err) {
+    console.warn(`Gagal menyimpan ke Documents/KeuanganKu/${filename} (${err.message}). Menjalankan fallback ke Cache & Share Sheet.`);
+
+    // Fallback: tulis ke Directory.Cache lalu buka share sheet
+    try {
+      const cacheWriteOptions = {
+        path: filename,
+        data: fileData,
+        directory: 'CACHE',
+        recursive: true
+      };
+      if (!isBase64) {
+        cacheWriteOptions.encoding = 'utf8';
+      }
+
+      await Filesystem.writeFile(cacheWriteOptions);
+
+      const cacheResult = await Filesystem.getUri({
+        path: filename,
+        directory: 'CACHE'
+      });
+
+      if (Share && typeof Share.share === 'function') {
+        showToast('Penyimpanan publik dibatasi sistem. Membuka lembar berbagi berkas...', 'info');
+        await Share.share({
+          title: options.title || filename,
+          text: options.text || '',
+          dialogTitle: options.dialogTitle || 'Simpan / Bagikan Berkas',
+          files: [cacheResult.uri]
+        });
+        return { success: true, method: 'cache-share', uri: cacheResult.uri };
+      } else {
+        showToast(`Tersimpan di cache perangkat: ${filename}`, 'info');
+        return { success: true, method: 'cache-only', uri: cacheResult.uri };
+      }
+    } catch (fallbackErr) {
+      console.error('Fallback penyimpanan gagal:', fallbackErr);
+      showToast('Gagal menyimpan berkas: ' + fallbackErr.message, 'danger');
+      return { success: false, error: fallbackErr };
+    }
+  }
+}
+
+/**
+ * Helper terpusat untuk membagikan berkas via Share Sheet
+ * - Di Android: tulis berkas ke Directory.Cache lalu panggil Share.share({ files: [uri], dialogTitle: '...' })
+ * - Di browser: panggil Web Share API (navigator.share) atau fallback unduh
+ */
+async function shareFile(filename, data, mime, options = {}) {
+  const isBase64 = !!options.base64;
+  let fileData = data;
+  if (isBase64 && typeof data === 'string' && data.includes(',')) {
+    fileData = data.split(',')[1];
+  }
+
+  // 1. Browser biasa
+  if (!isNativePlatform()) {
+    try {
+      const blob = isBase64 ? base64ToBlob(data, mime) : new Blob([data], { type: mime });
+      const file = new File([blob], filename, { type: mime });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: options.title || 'KeuanganKu',
+          text: options.text || ''
+        });
+        showToast('Berkas berhasil dibagikan!', 'success');
+        return { success: true, method: 'web-share' };
+      } else if (navigator.share && options.text) {
+        await navigator.share({
+          title: options.title || 'KeuanganKu',
+          text: options.text
+        });
+        showToast('Ringkasan teks berhasil dibagikan!', 'success');
+        return { success: true, method: 'web-share-text' };
+      } else {
+        downloadBlobInBrowser(blob, filename);
+        showToast(`Fitur berbagi tidak didukung browser ini. Berkas diunduh sebagai ${filename}`, 'info');
+        return { success: true, method: 'browser-download' };
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') return { cancelled: true };
+      console.error('Gagal membagikan di browser:', err);
+      showToast('Gagal membagikan berkas: ' + err.message, 'danger');
+      return { success: false, error: err };
+    }
+  }
+
+  // 2. Native Capacitor
+  const Filesystem = getFilesystemPlugin();
+  const Share = getSharePlugin();
+
+  if (!Filesystem || !Share) {
+    showToast('Plugin penyimpanan / berbagi tidak tersedia', 'danger');
+    return { success: false, error: 'Plugins unavailable' };
+  }
+
+  try {
+    const writeOptions = {
+      path: filename,
+      data: fileData,
+      directory: 'CACHE',
+      recursive: true
+    };
+    if (!isBase64) {
+      writeOptions.encoding = 'utf8';
+    }
+
+    await Filesystem.writeFile(writeOptions);
+
+    const uriResult = await Filesystem.getUri({
+      path: filename,
+      directory: 'CACHE'
+    });
+
+    await Share.share({
+      title: options.title || 'KeuanganKu',
+      text: options.text || '',
+      dialogTitle: options.dialogTitle || 'Bagikan',
+      files: [uriResult.uri]
+    });
+
+    return { success: true, method: 'native-share', uri: uriResult.uri };
+  } catch (err) {
+    if (err && (err.message?.includes('canceled') || err.message?.includes('cancelled') || err.name === 'AbortError')) {
+      return { cancelled: true };
+    }
+    console.error('Gagal membagikan berkas di platform native:', err);
+    showToast('Gagal membagikan: ' + err.message, 'danger');
+    return { success: false, error: err };
+  }
+}
+
+/**
+ * Unduh Laporan PDF ke Dokumen/KeuanganKu/ (atau browser)
+ * Nama file: KeuanganKu_Laporan_YYYY-MM-DD.pdf
+ */
+async function exportToPDF() {
   try {
     const doc = generatePDFDocument();
     if (!doc) return;
+
+    showToast('Menyiapkan dokumen PDF...', 'info');
     const filename = `KeuanganKu_Laporan_${formatDateISO(new Date())}.pdf`;
-    doc.save(filename);
+
+    // Ambil datauri dan ekstrak base64
+    const dataUri = doc.output('datauristring');
+    const base64Data = dataUri.includes(',') ? dataUri.split(',')[1] : dataUri;
+
+    await saveFile(filename, base64Data, 'application/pdf', {
+      base64: true,
+      title: 'Laporan Keuangan KeuanganKu',
+      dialogTitle: 'Simpan / Bagikan Laporan PDF'
+    });
+
     closeExportModal();
-    showToast('Laporan PDF berhasil diunduh!', 'success');
   } catch (err) {
     console.error('Gagal membuat PDF:', err);
     showToast('Gagal membuat PDF: ' + err.message, 'danger');
@@ -1361,64 +1644,43 @@ function exportToPDF() {
 }
 
 /**
- * Bagikan berkas PDF langsung ke WhatsApp, Telegram, Gmail, AirDrop, dll via Web Share API
+ * Bagikan Laporan PDF ke aplikasi lain (WhatsApp, Drive, dll)
  */
-async function sharePDFToApps() {
-  try {
-    const items = getFilteredTransactions();
-    if (items.length === 0) {
-      showToast('Tidak ada data transaksi untuk dibagikan', 'danger');
-      return;
-    }
-
-    showToast('Menyiapkan dokumen PDF...', 'info');
-    const doc = generatePDFDocument();
-    if (!doc) return;
-
-    const filename = `KeuanganKu_Laporan_${formatDateISO(new Date())}.pdf`;
-    const pdfBlob = doc.output('blob');
-    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
-
-    // Periksa apakah peramban mendukung berbagi berkas via Web Share API
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: 'Laporan Keuangan - KeuanganKu',
-          text: `Berikut adalah laporan keuangan KeuanganKu (${items.length} transaksi).`
-        });
-        closeExportModal();
-        showToast('Laporan PDF berhasil dibagikan!', 'success');
-        return;
-      } catch (shareErr) {
-        if (shareErr.name === 'AbortError') {
-          // Pengguna menutup lembar berbagi
-          return;
-        }
-        console.warn('Gagal membagikan berkas via navigator.share:', shareErr);
-      }
-    }
-
-    // Fallback jika tidak didukung: simpan file ke perangkat
-    doc.save(filename);
-    closeExportModal();
-    showToast('Perangkat tidak mendukung bagikan berkas langsung. Dokumen PDF telah disimpan ke unduhan.', 'info');
-  } catch (err) {
-    console.error('Kesalahan saat membagikan PDF:', err);
-    showToast('Gagal membagikan PDF: ' + err.message, 'danger');
-  }
-}
-
-/**
- * Bagikan Ringkasan Teks ke WhatsApp atau Salin Teks
- */
-function shareTextSummary() {
+async function sharePDFReport() {
   const items = getFilteredTransactions();
   if (items.length === 0) {
     showToast('Tidak ada data transaksi untuk dibagikan', 'danger');
     return;
   }
 
+  try {
+    showToast('Menyiapkan berkas PDF...', 'info');
+    const doc = generatePDFDocument();
+    if (!doc) return;
+
+    const filename = `KeuanganKu_Laporan_${formatDateISO(new Date())}.pdf`;
+    const dataUri = doc.output('datauristring');
+    const base64Data = dataUri.includes(',') ? dataUri.split(',')[1] : dataUri;
+
+    await shareFile(filename, base64Data, 'application/pdf', {
+      base64: true,
+      title: 'Laporan Keuangan KeuanganKu',
+      text: `Berikut adalah laporan keuangan KeuanganKu (${items.length} transaksi).`,
+      dialogTitle: 'Bagikan'
+    });
+
+    closeExportModal();
+  } catch (err) {
+    console.error('Gagal membagikan PDF:', err);
+    showToast('Gagal membagikan PDF: ' + err.message, 'danger');
+  }
+}
+
+/**
+ * Buat string ringkasan teks untuk dibagikan
+ */
+function generateTextSummary() {
+  const items = getFilteredTransactions();
   let incomeTotal = 0;
   let expenseTotal = 0;
   items.forEach(i => {
@@ -1434,102 +1696,155 @@ function shareTextSummary() {
   text += `💰 *Saldo Bersih:* ${formatRupiah(net)} (${net >= 0 ? 'Surplus / Positif' : 'Defisit / Negatif'})\n`;
   text += `🟢 *Total Pemasukan:* ${formatRupiah(incomeTotal)}\n`;
   text += `🔴 *Total Pengeluaran:* ${formatRupiah(expenseTotal)}\n\n`;
-  text += `📝 *Catatan Transaksi Terakhir (${Math.min(5, items.length)} dari ${items.length}):*\n`;
+  text += `📝 *Catatan Transaksi Terakhir (${Math.min(10, items.length)} dari ${items.length}):*\n`;
 
-  items.slice(0, 5).forEach((item, idx) => {
+  items.slice(0, 10).forEach((item, idx) => {
     const sign = item.type === 'income' ? '🟢 +' : '🔴 -';
     text += `${idx + 1}. ${formatDateIndo(item.date)} | ${item.title} (${sign}${formatRupiah(item.amount)})\n`;
   });
 
-  if (items.length > 5) {
-    text += `... dan ${items.length - 5} transaksi lainnya.\n`;
+  if (items.length > 10) {
+    text += `... dan ${items.length - 10} transaksi lainnya.\n`;
   }
-  text += `\n_Dicatat & dikelola mandiri via Aplikasi KeuanganKu_`;
+  text += `\n_Dicatat & dikelola mandiri via Aplikasi KeuanganKu_\n`;
+  return text;
+}
 
-  if (navigator.share) {
-    navigator.share({
+/**
+ * Bagikan Ringkasan Teks (.txt) ke WhatsApp atau aplikasi chat lainnya
+ */
+async function shareTextSummary() {
+  const items = getFilteredTransactions();
+  if (items.length === 0) {
+    showToast('Tidak ada data transaksi untuk dibagikan', 'danger');
+    return;
+  }
+
+  try {
+    const summaryText = generateTextSummary();
+    const filename = `KeuanganKu_Ringkasan_${formatDateISO(new Date())}.txt`;
+
+    await shareFile(filename, summaryText, 'text/plain;charset=utf-8', {
+      base64: false,
       title: 'Ringkasan KeuanganKu',
-      text: text
-    }).then(() => {
-      closeExportModal();
-      showToast('Ringkasan berhasil dibagikan!', 'success');
-    }).catch(err => {
-      if (err.name !== 'AbortError') {
-        openWhatsAppDirect(text);
-      }
+      text: summaryText,
+      dialogTitle: 'Bagikan'
     });
-  } else {
-    openWhatsAppDirect(text);
+
+    closeExportModal();
+  } catch (err) {
+    console.error('Gagal membagikan ringkasan teks:', err);
+    showToast('Gagal membagikan ringkasan: ' + err.message, 'danger');
   }
 }
 
-function openWhatsAppDirect(text) {
-  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
-  window.open(url, '_blank');
-  closeExportModal();
-  showToast('Membuka WhatsApp...', 'success');
-}
-
-function exportToCSV() {
+/**
+ * Format CSV: simpan lewat helper (utf8, tambahkan BOM \uFEFF agar terbuka benar di Excel).
+ * Nama: KeuanganKu_YYYY-MM-DD.csv
+ */
+async function exportToCSV() {
   if (state.transactions.length === 0) {
     showToast('Tidak ada data untuk diekspor', 'danger');
     return;
   }
 
-  const headers = ['ID', 'Tanggal', 'Waktu', 'Tipe', 'Kategori', 'Keterangan', 'Nominal (Rp)', 'Catatan'];
-  const rows = state.transactions.map(item => {
-    const cat = getCategoryInfo(item.type, item.category);
-    return [
-      `"${item.id}"`,
-      `"${item.date}"`,
-      `"${item.time || ''}"`,
-      `"${item.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}"`,
-      `"${cat.name}"`,
-      `"${(item.title || '').replace(/"/g, '""')}"`,
-      item.amount,
-      `"${(item.notes || '').replace(/"/g, '""')}"`
-    ];
-  });
+  try {
+    const headers = ['ID', 'Tanggal', 'Waktu', 'Tipe', 'Kategori', 'Keterangan', 'Nominal (Rp)', 'Catatan'];
+    const rows = state.transactions.map(item => {
+      const cat = getCategoryInfo(item.type, item.category);
+      return [
+        `"${item.id}"`,
+        `"${item.date}"`,
+        `"${item.time || ''}"`,
+        `"${item.type === 'income' ? 'Pemasukan' : 'Pengeluaran'}"`,
+        `"${cat.name}"`,
+        `"${(item.title || '').replace(/"/g, '""')}"`,
+        item.amount,
+        `"${(item.notes || '').replace(/"/g, '""')}"`
+      ];
+    });
 
-  const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `KeuanganKu_Laporan_${formatDateISO(new Date())}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  closeExportModal();
-  showToast('File CSV berhasil diunduh', 'success');
+    // Tambahkan BOM \uFEFF di awal berkas CSV agar terbaca benar di Excel
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const filename = `KeuanganKu_${formatDateISO(new Date())}.csv`;
+
+    await saveFile(filename, csvContent, 'text/csv;charset=utf-8;', {
+      base64: false,
+      title: 'Data Transaksi KeuanganKu',
+      dialogTitle: 'Simpan / Bagikan Berkas CSV'
+    });
+
+    closeExportModal();
+  } catch (err) {
+    console.error('Gagal mengekspor CSV:', err);
+    showToast('Gagal mengekspor CSV: ' + err.message, 'danger');
+  }
 }
 
 /**
- * Ekspor data transaksi ke berkas cadangan JSON
+ * Payload JSON data transaksi aplikasi
  */
-function exportToJSON() {
-  if (state.transactions.length === 0) {
-    showToast('Tidak ada data transaksi untuk diekspor', 'danger');
-    return;
-  }
-
-  const backupPayload = {
+function getBackupJSONPayload() {
+  return JSON.stringify({
     app: 'KeuanganKu',
     version: '1.0.0',
     exportDate: new Date().toISOString(),
     totalTransactions: state.transactions.length,
     transactions: state.transactions
-  };
+  }, null, 2);
+}
 
-  const jsonStr = JSON.stringify(backupPayload, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `KeuanganKu_Backup_${formatDateISO(new Date())}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  closeExportModal();
-  showToast(`Berkas cadangan JSON (${state.transactions.length} transaksi) berhasil diunduh!`, 'success');
+/**
+ * Cadangkan Data (.json): simpan lewat helper
+ */
+async function exportToJSON() {
+  if (state.transactions.length === 0) {
+    showToast('Tidak ada data transaksi untuk diekspor', 'danger');
+    return;
+  }
+
+  try {
+    const jsonStr = getBackupJSONPayload();
+    const filename = `KeuanganKu_Backup_${formatDateISO(new Date())}.json`;
+
+    await saveFile(filename, jsonStr, 'application/json;charset=utf-8', {
+      base64: false,
+      title: 'Cadangan Data KeuanganKu',
+      dialogTitle: 'Simpan Cadangan JSON'
+    });
+
+    closeExportModal();
+  } catch (err) {
+    console.error('Gagal mencadangkan data JSON:', err);
+    showToast('Gagal mencadangkan data: ' + err.message, 'danger');
+  }
+}
+
+/**
+ * Simpan ke Google Drive / bagikan cadangan data (.json)
+ */
+async function shareJSONBackup() {
+  if (state.transactions.length === 0) {
+    showToast('Tidak ada data transaksi untuk dicadangkan', 'danger');
+    return;
+  }
+
+  try {
+    const jsonStr = getBackupJSONPayload();
+    const filename = `KeuanganKu_Backup_${formatDateISO(new Date())}.json`;
+
+    await shareFile(filename, jsonStr, 'application/json;charset=utf-8', {
+      base64: false,
+      title: 'Cadangan Data KeuanganKu',
+      text: `Berkas cadangan data transaksi KeuanganKu (${state.transactions.length} transaksi).`,
+      dialogTitle: 'Simpan ke Google Drive / Bagikan'
+    });
+
+    closeExportModal();
+  } catch (err) {
+    console.error('Gagal membagikan cadangan JSON:', err);
+    showToast('Gagal membagikan cadangan: ' + err.message, 'danger');
+  }
 }
 
 /**
@@ -1630,11 +1945,67 @@ function handleImportJsonFile(event) {
   reader.readAsText(file);
 }
 
-function printReport() {
+/**
+ * Cetak Dokumen Laporan:
+ * - Pada native Android: hasilkan PDF ke Directory.Cache, ambil path filenya,
+ *   lalu panggil Capacitor.Plugins.PdfPrint.print({ path }).
+ * - Jika bukan native: fallback window.print().
+ */
+async function printReport() {
   closeExportModal();
-  setTimeout(() => {
-    window.print();
-  }, 200);
+
+  // 1. Fallback untuk browser biasa (non-native)
+  if (!isNativePlatform()) {
+    setTimeout(() => {
+      window.print();
+    }, 200);
+    return;
+  }
+
+  // 2. Native Android via Plugin PdfPrint
+  try {
+    const PdfPrint = getPdfPrintPlugin();
+    const Filesystem = getFilesystemPlugin();
+
+    if (!PdfPrint || typeof PdfPrint.print !== 'function') {
+      console.warn('Plugin PdfPrint tidak ditemukan pada window.Capacitor.Plugins. Menjalankan fallback window.print()');
+      window.print();
+      return;
+    }
+
+    if (!Filesystem) {
+      console.warn('Plugin Filesystem tidak tersedia untuk menyiapkan PDF cetak');
+      window.print();
+      return;
+    }
+
+    showToast('Menyiapkan dokumen cetak...', 'info');
+    const doc = generatePDFDocument();
+    if (!doc) return;
+
+    const filename = `KeuanganKu_Cetak_${Date.now()}.pdf`;
+    const dataUri = doc.output('datauristring');
+    const base64Data = dataUri.includes(',') ? dataUri.split(',')[1] : dataUri;
+
+    // Tulis ke Directory.Cache
+    await Filesystem.writeFile({
+      path: filename,
+      data: base64Data,
+      directory: 'CACHE',
+      recursive: true
+    });
+
+    const uriResult = await Filesystem.getUri({
+      path: filename,
+      directory: 'CACHE'
+    });
+
+    // Panggil Capacitor.Plugins.PdfPrint.print({ path })
+    await PdfPrint.print({ path: uriResult.uri });
+  } catch (err) {
+    console.error('Gagal mencetak laporan via PdfPrint:', err);
+    showToast('Gagal memproses cetak: ' + err.message, 'danger');
+  }
 }
 
 // =============================================================================
@@ -1827,13 +2198,19 @@ function setupEventListeners() {
   if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportToPDF);
 
   const sharePdfBtn = document.getElementById('sharePdfBtn');
-  if (sharePdfBtn) sharePdfBtn.addEventListener('click', sharePDFToApps);
+  if (sharePdfBtn) sharePdfBtn.addEventListener('click', sharePDFReport);
+
+  const shareTextBtn = document.getElementById('shareTextBtn');
+  if (shareTextBtn) shareTextBtn.addEventListener('click', shareTextSummary);
 
   const shareWhatsappBtn = document.getElementById('shareWhatsappBtn');
   if (shareWhatsappBtn) shareWhatsappBtn.addEventListener('click', shareTextSummary);
 
   const exportJsonBtn = document.getElementById('exportJsonBtn');
   if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportToJSON);
+
+  const shareJsonBtn = document.getElementById('shareJsonBtn');
+  if (shareJsonBtn) shareJsonBtn.addEventListener('click', shareJSONBackup);
 
   const importJsonBtn = document.getElementById('importJsonBtn');
   const importJsonInput = document.getElementById('importJsonInput');
