@@ -37,8 +37,9 @@ const THEME_KEY = 'keuanganku_theme_v1';
 // =============================================================================
 const state = {
   transactions: [],
-  currentPeriod: 'all', // 'all', 'daily', 'weekly', 'monthly'
-  anchorDate: new Date(), // Tanggal acuan untuk filter periode
+  currentPeriod: 'monthly', // Default ke bulanan agar sesuai tampilan dashboard finansial modern
+  anchorDate: new Date(), // Tanggal hari ini agar dashboard Beranda selalu menampilkan bulan berjalan
+  activeTab: 'beranda', // 'beranda', 'transaksi', 'anggaran', 'laporan'
   filters: {
     search: '',
     type: 'all', // 'all', 'income', 'expense'
@@ -124,116 +125,174 @@ function getCategoryInfo(type, catId) {
   return fallback || { id: catId, name: catId, icon: 'fa-tag', color: '#64748b' };
 }
 
-// Generate Realistic Seed / Demo Data
+// Generate Realistic Seed / Demo Data (Mei 2024 & April 2024)
 function generateSampleData() {
-  const today = new Date();
-  
-  function getDateOffset(daysAgo) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - daysAgo);
-    return formatDateISO(d);
-  }
-
   return [
+    // --- MEI 2024: Total Pemasukan = 10.850.000, Total Pengeluaran = 1.545.000, Saldo Bersih = 9.305.000 (Rasio Tabungan 86%) ---
     {
-      id: 'tx-' + Date.now() + '-1',
+      id: 'tx-202405-01',
       type: 'income',
       title: 'Gaji Pokok Bulanan',
       amount: 8500000,
       category: 'salary',
-      date: getDateOffset(4),
+      date: '2024-05-01',
       time: '09:00',
-      notes: 'Transfer rekening utama dari kantor'
+      notes: 'Transfer payroll rekening utama kantor'
     },
     {
-      id: 'tx-' + Date.now() + '-2',
-      type: 'expense',
-      title: 'Belanja Mingguan Supermarket',
-      amount: 450000,
-      category: 'shopping',
-      date: getDateOffset(0),
-      time: '11:30',
-      notes: 'Bahan pokok, buah, dan sabun mandi'
-    },
-    {
-      id: 'tx-' + Date.now() + '-3',
-      type: 'expense',
-      title: 'Makan Siang Soto Betawi & Es Teh',
-      amount: 45000,
-      category: 'food',
-      date: getDateOffset(0),
-      time: '12:45',
-      notes: 'Makan siang kantor'
-    },
-    {
-      id: 'tx-' + Date.now() + '-4',
-      type: 'expense',
-      title: 'Isi Bensin Pertamax',
-      amount: 100000,
-      category: 'transport',
-      date: getDateOffset(1),
-      time: '08:15',
-      notes: 'SPBU KM 14'
-    },
-    {
-      id: 'tx-' + Date.now() + '-5',
-      type: 'income',
-      title: 'Project Freelance Web Design',
-      amount: 2200000,
-      category: 'freelance',
-      date: getDateOffset(2),
-      time: '16:00',
-      notes: 'Pelunasan milestone 2 website katalog'
-    },
-    {
-      id: 'tx-' + Date.now() + '-6',
+      id: 'tx-202405-02',
       type: 'expense',
       title: 'Tagihan Listrik PLN & Internet Fiber',
       amount: 680000,
       category: 'bills',
-      date: getDateOffset(3),
-      time: '10:00',
+      date: '2024-05-02',
+      time: '08:30',
       notes: 'Pembayaran tagihan bulanan via m-banking'
     },
     {
-      id: 'tx-' + Date.now() + '-7',
+      id: 'tx-202405-03',
       type: 'expense',
-      title: 'Nonton Bioskop & Popcorn',
-      amount: 135000,
-      category: 'entertainment',
-      date: getDateOffset(2),
-      time: '19:20',
-      notes: 'Akhir pekan'
+      title: 'Belanja Mingguan Supermarket',
+      amount: 450000,
+      category: 'shopping',
+      date: '2024-05-05',
+      time: '11:00',
+      notes: 'Kebutuhan dapur, sayur, dan bahan pangan'
     },
     {
-      id: 'tx-' + Date.now() + '-8',
+      id: 'tx-202405-04',
+      type: 'expense',
+      title: 'Isi Bensin Pertamax & BBM',
+      amount: 150000,
+      category: 'transport',
+      date: '2024-05-10',
+      time: '09:15',
+      notes: 'SPBU Pertamina jalan protokol'
+    },
+    {
+      id: 'tx-202405-05',
+      type: 'expense',
+      title: 'Nonton Bioskop & Popcorn',
+      amount: 130000,
+      category: 'entertainment',
+      date: '2024-05-14',
+      time: '19:30',
+      notes: 'Hiburan santai akhir pekan'
+    },
+    {
+      id: 'tx-202405-06',
+      type: 'income',
+      title: 'Project Freelance UI/UX Mobile',
+      amount: 2200000,
+      category: 'freelance',
+      date: '2024-05-15',
+      time: '16:30',
+      notes: 'Pelunasan milestone desain aplikasi mobile'
+    },
+    {
+      id: 'tx-202405-07',
       type: 'expense',
       title: 'Vitamin & Obat Apotek',
       amount: 85000,
       category: 'health',
-      date: getDateOffset(5),
-      time: '14:10',
-      notes: 'Vitamin C & suplemen daya tahan tubuh'
+      date: '2024-05-18',
+      time: '14:00',
+      notes: 'Suplemen vitamin daya tahan tubuh'
     },
     {
-      id: 'tx-' + Date.now() + '-9',
+      id: 'tx-202405-08',
       type: 'income',
-      title: 'Dividen Reksadana Pasar Uang',
+      title: 'Dividen Reksadana & Investasi',
       amount: 150000,
       category: 'investment',
-      date: getDateOffset(6),
-      time: '10:30',
-      notes: 'Hasil bagi hasil bulanan'
+      date: '2024-05-20',
+      time: '10:15',
+      notes: 'Bagi hasil instrumen pasar uang'
     },
     {
-      id: 'tx-' + Date.now() + '-10',
+      id: 'tx-202405-09',
       type: 'expense',
       title: 'Sedekah Jumat Berkah',
       amount: 50000,
       category: 'gift',
-      date: getDateOffset(6),
-      time: '12:00',
-      notes: 'Masjid lingkungan'
+      date: '2024-05-24',
+      time: '12:15',
+      notes: 'Infaq masjid lingkungan sekitar'
+    },
+
+    // --- APRIL 2024: Pemasukan 11.300.000, Pengeluaran 2.500.000, Saldo Bersih 8.800.000 ---
+    // Pertumbuhan Mei vs April: (9.305.000 - 8.800.000) / 8.800.000 = +5.738% -> "Naik 5,7% dari bulan lalu"
+    {
+      id: 'tx-202404-01',
+      type: 'income',
+      title: 'Gaji Pokok Bulan April',
+      amount: 8500000,
+      category: 'salary',
+      date: '2024-04-01',
+      time: '09:00',
+      notes: 'Gaji pokok April'
+    },
+    {
+      id: 'tx-202404-02',
+      type: 'expense',
+      title: 'Sewa Tempat & Tagihan Utilitas',
+      amount: 1500000,
+      category: 'bills',
+      date: '2024-04-05',
+      time: '10:00',
+      notes: 'Pembayaran rutin sewa & utilitas'
+    },
+    {
+      id: 'tx-202404-03',
+      type: 'expense',
+      title: 'Belanja Kebutuhan Rumah Tangga',
+      amount: 600000,
+      category: 'shopping',
+      date: '2024-04-12',
+      time: '15:30',
+      notes: 'Kebutuhan bulanan'
+    },
+    {
+      id: 'tx-202404-04',
+      type: 'income',
+      title: 'Bonus Kinerja Q1',
+      amount: 2800000,
+      category: 'bonus',
+      date: '2024-04-15',
+      time: '14:00',
+      notes: 'Reward performa kuartal 1'
+    },
+    {
+      id: 'tx-202404-05',
+      type: 'expense',
+      title: 'Servis Rutin Kendaraan & Bensin',
+      amount: 400000,
+      category: 'transport',
+      date: '2024-04-20',
+      time: '08:45',
+      notes: 'Ganti oli dan servis rem'
+    },
+
+    // --- JUNI 2024: Data proyeksi awal bulan untuk kelengkapan grafik cashflow 3 bulan ---
+    {
+      id: 'tx-202406-01',
+      type: 'income',
+      title: 'Pendapatan Pasif Awal Juni',
+      amount: 800000,
+      category: 'investment',
+      date: '2024-06-01',
+      time: '10:00',
+      notes: 'Yield portofolio investasi'
+    },
+    {
+      id: 'tx-202406-02',
+      type: 'expense',
+      title: 'Anggaran Alokasi Tabungan Berencana',
+      amount: 5000000,
+      category: 'bills',
+      date: '2024-06-03',
+      time: '14:00',
+      notes: 'Setoran tabungan auto-debit'
     }
   ];
 }
@@ -454,31 +513,210 @@ function renderKPIs() {
   const netBalance = incomeTotal - expenseTotal;
   const savingsRate = incomeTotal > 0 ? Math.round(((incomeTotal - expenseTotal) / incomeTotal) * 100) : 0;
 
-  // Update DOM Elements
-  const netBalanceEl = document.getElementById('netBalanceValue');
-  const balanceBadge = document.getElementById('balanceStatusBadge');
-  const totalIncomeEl = document.getElementById('totalIncomeValue');
-  const incomeCountEl = document.getElementById('incomeCountText');
-  const totalExpenseEl = document.getElementById('totalExpenseValue');
-  const expenseCountEl = document.getElementById('expenseCountText');
-  const savingsRateEl = document.getElementById('savingsRateValue');
+  // Hitung pertumbuhan Saldo Bersih dibanding bulan sebelumnya
+  const prevMonthDate = new Date(state.anchorDate.getFullYear(), state.anchorDate.getMonth() - 1, 1);
+  let prevIncome = 0;
+  let prevExpense = 0;
 
-  netBalanceEl.textContent = formatRupiah(netBalance);
-  if (netBalance >= 0) {
-    balanceBadge.textContent = 'Cashflow Positif';
-    balanceBadge.className = 'card-badge';
-  } else {
-    balanceBadge.textContent = 'Defisit Pengeluaran';
-    balanceBadge.className = 'card-badge negative';
+  state.transactions.forEach(item => {
+    if (!item.date) return;
+    const itemDate = new Date(item.date + 'T00:00:00');
+    if (
+      itemDate.getFullYear() === prevMonthDate.getFullYear() &&
+      itemDate.getMonth() === prevMonthDate.getMonth()
+    ) {
+      const amt = Number(item.amount) || 0;
+      if (item.type === 'income') prevIncome += amt;
+      else if (item.type === 'expense') prevExpense += amt;
+    }
+  });
+
+  const prevNet = prevIncome - prevExpense;
+
+  // Format teks bulan aktif (contoh: "Mei 2024")
+  const activeMonthStr = new Intl.DateTimeFormat('id-ID', {
+    month: 'short',
+    year: 'numeric'
+  }).format(state.anchorDate);
+
+  // Update DOM Elements Sesuai Mockup
+  const netBalanceEl = document.getElementById('netBalanceValue');
+  const totalIncomeEl = document.getElementById('totalIncomeValue');
+  const totalExpenseEl = document.getElementById('totalExpenseValue');
+  const savingsRateEl = document.getElementById('savingsRateValue');
+  const savingsDonutPercent = document.getElementById('savingsDonutPercent');
+  const savingsDonutCircle = document.getElementById('savingsDonutCircle');
+  const savingsStatusBadge = document.getElementById('savingsStatusBadge');
+  const balanceTrendPill = document.getElementById('balanceTrendPill');
+  const incomePeriodMonth = document.getElementById('incomePeriodMonth');
+  const expensePeriodMonth = document.getElementById('expensePeriodMonth');
+
+  // Legacy elements
+  const balanceBadge = document.getElementById('balanceStatusBadge');
+  const incomeCountEl = document.getElementById('incomeCountText');
+  const expenseCountEl = document.getElementById('expenseCountText');
+
+  if (netBalanceEl) netBalanceEl.textContent = formatRupiah(netBalance);
+  if (totalIncomeEl) totalIncomeEl.textContent = formatRupiah(incomeTotal);
+  if (totalExpenseEl) totalExpenseEl.textContent = formatRupiah(expenseTotal);
+  if (savingsRateEl) savingsRateEl.textContent = `${savingsRate}%`;
+  if (savingsDonutPercent) savingsDonutPercent.textContent = `${savingsRate}%`;
+
+  if (incomePeriodMonth) incomePeriodMonth.textContent = activeMonthStr;
+  if (expensePeriodMonth) expensePeriodMonth.textContent = activeMonthStr;
+
+  // Update Donut Chart SVG stroke-dashoffset (r = 42, keliling = 263.89)
+  if (savingsDonutCircle) {
+    const circumference = 263.89;
+    const clamped = Math.min(Math.max(savingsRate, 0), 100);
+    const offset = circumference - (circumference * clamped / 100);
+    savingsDonutCircle.style.strokeDashoffset = offset;
   }
 
-  totalIncomeEl.textContent = formatRupiah(incomeTotal);
-  incomeCountEl.textContent = `${incomeCount} transaksi masuk`;
+  // Update Status Rasio Tabungan
+  if (savingsStatusBadge) {
+    if (savingsRate >= 70) {
+      savingsStatusBadge.className = 'pill-clean status-pill-success';
+      savingsStatusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Sangat baik!';
+    } else if (savingsRate >= 40) {
+      savingsStatusBadge.className = 'pill-clean status-pill-success';
+      savingsStatusBadge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Baik';
+    } else if (savingsRate >= 20) {
+      savingsStatusBadge.className = 'pill-clean status-pill-neutral';
+      savingsStatusBadge.innerHTML = '<i class="fa-solid fa-circle-info"></i> Cukup';
+    } else {
+      savingsStatusBadge.className = 'pill-clean status-pill-warning';
+      savingsStatusBadge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Perlu ditingkatkan';
+    }
+  }
 
-  totalExpenseEl.textContent = formatRupiah(expenseTotal);
-  expenseCountEl.textContent = `${expenseCount} transaksi keluar`;
+  // Update Trend Saldo (MoM)
+  if (balanceTrendPill) {
+    if (prevNet > 0) {
+      const growth = ((netBalance - prevNet) / prevNet) * 100;
+      const formattedGrowth = Math.abs(growth).toFixed(1).replace('.', ',');
+      if (growth >= 0) {
+        balanceTrendPill.className = 'pill-clean trend-pill-up';
+        balanceTrendPill.innerHTML = `<i class="fa-solid fa-arrow-trend-up"></i> <span id="balanceTrendText">Naik ${formattedGrowth}% dari bulan lalu</span>`;
+      } else {
+        balanceTrendPill.className = 'pill-clean trend-pill-down';
+        balanceTrendPill.innerHTML = `<i class="fa-solid fa-arrow-trend-down"></i> <span id="balanceTrendText">Turun ${formattedGrowth}% dari bulan lalu</span>`;
+      }
+    } else {
+      balanceTrendPill.className = 'pill-clean trend-pill-neutral';
+      balanceTrendPill.innerHTML = `<i class="fa-solid fa-chart-line"></i> <span id="balanceTrendText">Data bulan lalu belum tersedia</span>`;
+    }
+  }
 
-  savingsRateEl.textContent = `${savingsRate}%`;
+  // Legacy fallback
+  if (balanceBadge) {
+    if (netBalance >= 0) {
+      balanceBadge.textContent = 'Cashflow Positif';
+      balanceBadge.className = 'card-badge';
+    } else {
+      balanceBadge.textContent = 'Defisit Pengeluaran';
+      balanceBadge.className = 'card-badge negative';
+    }
+  }
+  if (incomeCountEl) incomeCountEl.textContent = `${incomeCount} transaksi masuk`;
+  if (expenseCountEl) expenseCountEl.textContent = `${expenseCount} transaksi keluar`;
+
+  // Render Transaksi Terbaru di Tab Beranda & Ringkasan Anggaran
+  renderRecentTransactions();
+  renderCategoryProgress();
+}
+
+/**
+ * Render 5 transaksi terbaru pada card di Tab Beranda
+ */
+function renderRecentTransactions() {
+  const container = document.getElementById('recentTxList');
+  if (!container) return;
+
+  const currentItems = getFilteredTransactions().slice(0, 5);
+  if (currentItems.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 24px 12px; color: var(--text-tertiary); font-size: 0.85rem;">
+        Belum ada catatan transaksi di periode ini
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = currentItems.map(item => {
+    const cat = getCategoryInfo(item.type, item.category);
+    const isIncome = item.type === 'income';
+    const amountClass = isIncome ? 'text-income' : 'text-expense';
+    const amountPrefix = isIncome ? '+ ' : '- ';
+
+    return `
+      <div class="recent-tx-item" onclick="openEditModal('${item.id}')" style="cursor: pointer;" title="Klik untuk edit transaksi">
+        <div class="recent-tx-icon-wrap" style="background: ${cat.color}14; color: ${cat.color};">
+          <i class="fa-solid ${cat.icon}"></i>
+        </div>
+        <div class="recent-tx-details">
+          <div class="recent-tx-title">${escapeHtml(item.title)}</div>
+          <div class="recent-tx-subtitle">${cat.name} • ${formatDateIndo(item.date)}</div>
+        </div>
+        <div class="recent-tx-amount ${amountClass}">
+          ${amountPrefix}${formatRupiah(item.amount)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Render progress bar kategori pengeluaran pada Tab Anggaran
+ */
+function renderCategoryProgress() {
+  const container = document.getElementById('categoryProgressList');
+  if (!container) return;
+
+  const currentItems = getTransactionsInCurrentPeriod();
+  const expenseMap = {};
+  let totalExp = 0;
+
+  currentItems.forEach(i => {
+    if (i.type === 'expense') {
+      const amt = Number(i.amount) || 0;
+      expenseMap[i.category] = (expenseMap[i.category] || 0) + amt;
+      totalExp += amt;
+    }
+  });
+
+  const catKeys = Object.keys(expenseMap);
+  if (catKeys.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 24px; color: var(--text-tertiary); font-size: 0.85rem;">
+        Belum ada pengeluaran yang tercatat pada periode ini.
+      </div>
+    `;
+    return;
+  }
+
+  catKeys.sort((a, b) => expenseMap[b] - expenseMap[a]);
+
+  container.innerHTML = catKeys.map(catId => {
+    const info = getCategoryInfo('expense', catId);
+    const amt = expenseMap[catId];
+    const pct = totalExp > 0 ? Math.round((amt / totalExp) * 100) : 0;
+
+    return `
+      <div class="cat-progress-item">
+        <div class="cat-progress-header">
+          <span class="cat-progress-label">
+            <i class="fa-solid ${info.icon}" style="color: ${info.color};"></i>
+            ${info.name}
+          </span>
+          <span class="cat-progress-val">${formatRupiah(amt)} (${pct}%)</span>
+        </div>
+        <div class="cat-progress-bar">
+          <div class="cat-progress-fill" style="width: ${pct}%; background: ${info.color};"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // =============================================================================
@@ -674,36 +912,30 @@ function renderCashflowChart() {
       expenseData.push(daysMap[key].expense);
     });
   } else if (period === 'monthly') {
-    // Breakdown 4-5 minggu dalam bulan
-    const year = anchor.getFullYear();
-    const month = anchor.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    // 3 Bulan berurutan (Bulan Lalu, Bulan Berjalan, Bulan Berikutnya) persis seperti di mockup
+    const prevMonth = new Date(anchor.getFullYear(), anchor.getMonth() - 1, 1);
+    const currMonth = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    const nextMonth = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
     
-    // Kelompokkan menjadi rentang minggu (1-7, 8-14, 15-21, 22-28, 29-end)
-    const buckets = [
-      { label: 'Tgl 1-7', start: 1, end: 7, inc: 0, exp: 0 },
-      { label: 'Tgl 8-14', start: 8, end: 14, inc: 0, exp: 0 },
-      { label: 'Tgl 15-21', start: 15, end: 21, inc: 0, exp: 0 },
-      { label: 'Tgl 22-28', start: 22, end: 28, inc: 0, exp: 0 },
-      { label: `Tgl 29-${daysInMonth}`, start: 29, end: daysInMonth, inc: 0, exp: 0 }
-    ];
-
-    const currentItems = getTransactionsInCurrentPeriod();
-    currentItems.forEach(i => {
-      const d = new Date(i.date + 'T00:00:00').getDate();
-      for (const b of buckets) {
-        if (d >= b.start && d <= b.end) {
-          if (i.type === 'income') b.inc += Number(i.amount) || 0;
-          if (i.type === 'expense') b.exp += Number(i.amount) || 0;
-          break;
+    const threeMonths = [prevMonth, currMonth, nextMonth];
+    
+    threeMonths.forEach(m => {
+      const label = new Intl.DateTimeFormat('id-ID', { month: 'short', year: 'numeric' }).format(m);
+      labels.push(label);
+      
+      let mInc = 0;
+      let mExp = 0;
+      state.transactions.forEach(i => {
+        if (!i.date) return;
+        const idate = new Date(i.date + 'T00:00:00');
+        if (idate.getFullYear() === m.getFullYear() && idate.getMonth() === m.getMonth()) {
+          const amt = Number(i.amount) || 0;
+          if (i.type === 'income') mInc += amt;
+          else if (i.type === 'expense') mExp += amt;
         }
-      }
-    });
-
-    buckets.forEach(b => {
-      labels.push(b.label);
-      incomeData.push(b.inc);
-      expenseData.push(b.exp);
+      });
+      incomeData.push(mInc);
+      expenseData.push(mExp);
     });
   } else {
     // Semua periode: Tampilkan 6 bulan terakhir
@@ -740,6 +972,10 @@ function renderCashflowChart() {
     state.charts.cashflow.destroy();
   }
 
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const barIncomeColor = '#2563eb'; // Royal Blue sesuai mockup
+  const barExpenseColor = isDark ? '#64748b' : '#cbd5e1'; // Soft Slate Grey sesuai mockup
+
   state.charts.cashflow = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -748,16 +984,20 @@ function renderCashflowChart() {
         {
           label: 'Pemasukan',
           data: incomeData,
-          backgroundColor: '#10b981',
-          borderRadius: 6,
-          maxBarThickness: 32
+          backgroundColor: barIncomeColor,
+          borderRadius: 4,
+          maxBarThickness: 20,
+          categoryPercentage: 0.65,
+          barPercentage: 0.85
         },
         {
           label: 'Pengeluaran',
           data: expenseData,
-          backgroundColor: '#f43f5e',
-          borderRadius: 6,
-          maxBarThickness: 32
+          backgroundColor: barExpenseColor,
+          borderRadius: 4,
+          maxBarThickness: 20,
+          categoryPercentage: 0.65,
+          barPercentage: 0.85
         }
       ]
     },
@@ -770,21 +1010,15 @@ function renderCashflowChart() {
       },
       plugins: {
         legend: {
-          position: 'top',
-          labels: {
-            color: theme.textColor,
-            font: { family: "'Plus Jakarta Sans', sans-serif", weight: '600', size: 12 },
-            usePointStyle: true,
-            boxWidth: 8
-          }
+          display: false // Sembunyikan legend bawaan karena sudah ada custom HTML legend di card header
         },
         tooltip: {
           backgroundColor: theme.tooltipBg,
           titleColor: theme.tooltipText,
           bodyColor: theme.tooltipText,
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
           borderWidth: 1,
-          padding: 12,
+          padding: 10,
           callbacks: {
             label: function(context) {
               return ` ${context.dataset.label}: ${formatRupiah(context.raw)}`;
@@ -795,15 +1029,24 @@ function renderCashflowChart() {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: theme.textColor, font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 } }
-        },
-        y: {
-          grid: { color: theme.gridColor },
           ticks: {
             color: theme.textColor,
-            font: { family: "'Plus Jakarta Sans', sans-serif", size: 11 },
+            font: { family: "'Plus Jakarta Sans', sans-serif", size: 11, weight: '500' }
+          }
+        },
+        y: {
+          border: { display: false },
+          grid: {
+            color: theme.gridColor,
+            drawTicks: false
+          },
+          ticks: {
+            color: theme.textColor,
+            font: { family: "'Plus Jakarta Sans', sans-serif", size: 10 },
+            stepSize: 4000000,
             callback: value => {
-              if (value >= 1000000) return (value / 1000000).toFixed(1) + ' jt';
+              if (value === 0) return '0';
+              if (value >= 1000000) return (value / 1000000).toFixed(0) + ' jt';
               if (value >= 1000) return (value / 1000).toFixed(0) + ' rb';
               return value;
             }
@@ -1716,14 +1959,16 @@ function generateTextSummary() {
     if (i.type === 'expense') expenseTotal += (Number(i.amount) || 0);
   });
   const net = incomeTotal - expenseTotal;
-  const periodLabel = document.getElementById('periodLabel')?.textContent || 'Semua Riwayat';
+  const savingsRate = incomeTotal > 0 ? Math.round((net / incomeTotal) * 100) : 0;
+  const periodLabel = document.getElementById('periodLabel')?.textContent || `Bulanan: ${new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(state.anchorDate)}`;
 
   let text = `📊 *RINGKASAN LAPORAN KEUANGANKU*\n`;
   text += `📅 *Periode:* ${periodLabel}\n`;
   text += `🕒 *Dibuat:* ${new Intl.DateTimeFormat('id-ID', { dateStyle: 'full' }).format(new Date())}\n\n`;
-  text += `💰 *Saldo Bersih:* ${formatRupiah(net)} (${net >= 0 ? 'Surplus / Positif' : 'Defisit / Negatif'})\n`;
+  text += `💰 *Total Saldo Bersih:* ${formatRupiah(net)} (${net >= 0 ? 'Surplus / Positif' : 'Defisit / Negatif'})\n`;
   text += `🟢 *Total Pemasukan:* ${formatRupiah(incomeTotal)}\n`;
-  text += `🔴 *Total Pengeluaran:* ${formatRupiah(expenseTotal)}\n\n`;
+  text += `🔴 *Total Pengeluaran:* ${formatRupiah(expenseTotal)}\n`;
+  text += `📈 *Rasio Tabungan:* ${savingsRate}%\n\n`;
   text += `📝 *Catatan Transaksi Terakhir (${Math.min(10, items.length)} dari ${items.length}):*\n`;
 
   items.slice(0, 10).forEach((item, idx) => {
@@ -2109,7 +2354,7 @@ async function printReport() {
 // 12. Theme Management (Dark / Light Mode)
 // =============================================================================
 function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY) || 'dark';
+  const saved = localStorage.getItem(THEME_KEY) || 'light';
   setTheme(saved);
 }
 
@@ -2119,18 +2364,20 @@ function setTheme(theme) {
 
   const metaThemeColor = document.getElementById('metaThemeColor');
   if (metaThemeColor) {
-    metaThemeColor.setAttribute('content', theme === 'dark' ? '#0b0f17' : '#f8fafc');
+    metaThemeColor.setAttribute('content', theme === 'dark' ? '#0b0f17' : '#f4f6fa');
   }
 
   const toggleBtn = document.getElementById('themeToggleBtn');
   if (toggleBtn) {
     const icon = toggleBtn.querySelector('i');
-    if (theme === 'dark') {
-      icon.className = 'fa-solid fa-moon';
-      toggleBtn.title = 'Ubah ke Mode Terang';
-    } else {
-      icon.className = 'fa-solid fa-sun';
-      toggleBtn.title = 'Ubah ke Mode Gelap';
+    if (icon) {
+      if (theme === 'dark') {
+        icon.className = 'fa-solid fa-moon';
+        toggleBtn.title = 'Ubah ke Mode Terang';
+      } else {
+        icon.className = 'fa-solid fa-sun';
+        toggleBtn.title = 'Ubah ke Mode Gelap';
+      }
     }
   }
 
@@ -2145,7 +2392,103 @@ function toggleTheme() {
 }
 
 // =============================================================================
-// 13. Sinkronisasi Seluruh Tampilan UI
+// 13. Navigasi Tab & Dialog Info
+// =============================================================================
+function switchTab(tabName) {
+  state.activeTab = tabName;
+
+  // Update styling tombol navigasi bawah
+  document.querySelectorAll('.bottom-nav-item').forEach(item => {
+    if (item.getAttribute('data-tab') === tabName) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  // Tampilkan tab yang dipilih dan sembunyikan yang lain
+  const tabs = {
+    beranda: document.getElementById('tabContentBeranda'),
+    transaksi: document.getElementById('tabContentTransaksi'),
+    anggaran: document.getElementById('tabContentAnggaran'),
+    laporan: document.getElementById('tabContentLaporan')
+  };
+
+  Object.keys(tabs).forEach(key => {
+    if (tabs[key]) {
+      if (key === tabName) {
+        tabs[key].classList.remove('hidden');
+      } else {
+        tabs[key].classList.add('hidden');
+      }
+    }
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Refresh data khusus tab
+  if (tabName === 'beranda') {
+    renderKPIs();
+    renderCashflowChart();
+  } else if (tabName === 'transaksi') {
+    renderTransactionsTable();
+  } else if (tabName === 'anggaran') {
+    renderCategoryProgress();
+    renderCategoryChart();
+  } else if (tabName === 'laporan') {
+    renderCharts();
+  }
+}
+
+function openInfoModal(metric) {
+  const modal = document.getElementById('infoMetricModal');
+  const titleEl = document.getElementById('infoMetricTitle');
+  const textEl = document.getElementById('infoMetricText');
+  if (!modal || !titleEl || !textEl) return;
+
+  if (metric === 'saldo') {
+    titleEl.textContent = 'Total Saldo Bersih';
+    textEl.innerHTML = `
+      <p style="margin-bottom: 10px;"><strong>Total Saldo Bersih</strong> adalah selisih antara seluruh pemasukan dikurangi total pengeluaran Anda pada periode aktif.</p>
+      <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.88rem;">
+        <strong>Rumus:</strong><br>
+        Saldo Bersih = Total Pemasukan - Total Pengeluaran
+      </div>
+    `;
+  } else if (metric === 'rasio') {
+    titleEl.textContent = 'Rasio Tabungan (Savings Ratio)';
+    textEl.innerHTML = `
+      <p style="margin-bottom: 10px;"><strong>Rasio Tabungan</strong> menunjukkan persentase uang yang berhasil Anda simpan dari total pemasukan bulan ini.</p>
+      <div style="background: var(--bg-primary); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.88rem; margin-bottom: 10px;">
+        <strong>Rumus:</strong><br>
+        Rasio = (Saldo Bersih / Total Pemasukan) × 100%
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
+        <strong>Panduan Finansial:</strong><br>
+        • &gt; 50%: <em>Sangat baik (Target tercapai)</em><br>
+        • 20% - 50%: <em>Kondisi keuangan sehat</em><br>
+        • &lt; 20%: <em>Tingkatkan porsi tabungan</em>
+      </p>
+    `;
+  } else if (metric === 'cashflow') {
+    titleEl.textContent = 'Arus Kas (Cashflow)';
+    textEl.innerHTML = `
+      <p style="margin-bottom: 10px;"><strong>Arus Kas</strong> memvisualisasikan dinamika perbandingan uang masuk vs uang keluar selama 3 bulan berurutan.</p>
+      <p style="font-size: 0.88rem; color: var(--text-secondary);">
+        Batang biru menunjukkan total Pemasukan dan batang abu-abu menunjukkan total Pengeluaran.
+      </p>
+    `;
+  }
+  modal.showModal();
+}
+
+function openNotificationModal() {
+  const modal = document.getElementById('notificationModal');
+  if (modal) modal.showModal();
+}
+
+// =============================================================================
+// 14. Sinkronisasi Seluruh Tampilan UI
 // =============================================================================
 function refreshUI() {
   updatePeriodDisplay();
@@ -2155,9 +2498,53 @@ function refreshUI() {
 }
 
 // =============================================================================
-// 14. Event Listeners & Binding
+// 15. Event Listeners & Binding
 // =============================================================================
 function setupEventListeners() {
+  // Bottom Navigation Dock
+  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) switchTab(tab);
+    });
+  });
+
+  // FAB Tambah Transaksi di Navigasi Bawah
+  document.getElementById('bottomFabAddBtn')?.addEventListener('click', openAddModal);
+
+  // Pintasan aksi dari card Beranda & Anggaran
+  document.getElementById('viewDetailCashflowBtn')?.addEventListener('click', () => switchTab('transaksi'));
+  document.getElementById('viewAllTxBtn')?.addEventListener('click', () => switchTab('transaksi'));
+  document.getElementById('newBudgetBtn')?.addEventListener('click', () => {
+    openAddModal();
+    const expRadio = document.querySelector('input[name="transactionType"][value="expense"]');
+    if (expRadio) {
+      expRadio.checked = true;
+      populateCategoryDropdown('expense');
+    }
+  });
+
+  // Info Bubble Modals
+  document.querySelectorAll('.info-bubble-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const metric = btn.getAttribute('data-metric');
+      openInfoModal(metric);
+    });
+  });
+
+  document.getElementById('closeInfoModalBtn')?.addEventListener('click', () => {
+    document.getElementById('infoMetricModal')?.close();
+  });
+
+  // Notifikasi
+  document.getElementById('notificationBtn')?.addEventListener('click', openNotificationModal);
+  document.getElementById('closeNotificationModalBtn')?.addEventListener('click', () => {
+    document.getElementById('notificationModal')?.close();
+  });
+
+  // Tombol Bagikan Ringkasan di Header
+  document.getElementById('headerShareBtn')?.addEventListener('click', shareTextSummary);
+
   // Period Tabs
   document.querySelectorAll('.period-tabs .tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2174,38 +2561,40 @@ function setupEventListeners() {
   });
 
   // Date Navigations
-  document.getElementById('prevPeriodBtn').addEventListener('click', () => {
+  document.getElementById('prevPeriodBtn')?.addEventListener('click', () => {
     const anchor = state.anchorDate;
     if (state.currentPeriod === 'daily') {
       anchor.setDate(anchor.getDate() - 1);
     } else if (state.currentPeriod === 'weekly') {
       anchor.setDate(anchor.getDate() - 7);
     } else if (state.currentPeriod === 'monthly') {
+      anchor.setDate(1);
       anchor.setMonth(anchor.getMonth() - 1);
     }
     refreshUI();
   });
 
-  document.getElementById('nextPeriodBtn').addEventListener('click', () => {
+  document.getElementById('nextPeriodBtn')?.addEventListener('click', () => {
     const anchor = state.anchorDate;
     if (state.currentPeriod === 'daily') {
       anchor.setDate(anchor.getDate() + 1);
     } else if (state.currentPeriod === 'weekly') {
       anchor.setDate(anchor.getDate() + 7);
     } else if (state.currentPeriod === 'monthly') {
+      anchor.setDate(1);
       anchor.setMonth(anchor.getMonth() + 1);
     }
     refreshUI();
   });
 
-  document.getElementById('resetPeriodBtn').addEventListener('click', () => {
+  document.getElementById('resetPeriodBtn')?.addEventListener('click', () => {
     state.anchorDate = new Date();
     refreshUI();
   });
 
   // Date Pickers Change
   const dailyPicker = document.getElementById('datePickerDaily');
-  dailyPicker.addEventListener('change', e => {
+  dailyPicker?.addEventListener('change', e => {
     if (e.target.value) {
       state.anchorDate = new Date(e.target.value + 'T00:00:00');
       refreshUI();
@@ -2213,7 +2602,7 @@ function setupEventListeners() {
   });
 
   const monthlyPicker = document.getElementById('datePickerMonthly');
-  monthlyPicker.addEventListener('change', e => {
+  monthlyPicker?.addEventListener('change', e => {
     if (e.target.value) {
       const [year, month] = e.target.value.split('-');
       state.anchorDate = new Date(parseInt(year, 10), parseInt(month, 10) - 1, 1);
@@ -2225,40 +2614,40 @@ function setupEventListeners() {
   const searchInput = document.getElementById('searchInput');
   const clearSearchBtn = document.getElementById('clearSearchBtn');
 
-  searchInput.addEventListener('input', e => {
+  searchInput?.addEventListener('input', e => {
     state.filters.search = e.target.value;
     if (e.target.value) {
-      clearSearchBtn.classList.remove('hidden');
+      clearSearchBtn?.classList.remove('hidden');
     } else {
-      clearSearchBtn.classList.add('hidden');
+      clearSearchBtn?.classList.add('hidden');
     }
     renderTransactionsTable();
   });
 
-  clearSearchBtn.addEventListener('click', () => {
-    searchInput.value = '';
+  clearSearchBtn?.addEventListener('click', () => {
+    if (searchInput) searchInput.value = '';
     state.filters.search = '';
-    clearSearchBtn.classList.add('hidden');
+    clearSearchBtn?.classList.add('hidden');
     renderTransactionsTable();
   });
 
-  document.getElementById('typeFilter').addEventListener('change', e => {
+  document.getElementById('typeFilter')?.addEventListener('change', e => {
     state.filters.type = e.target.value;
     renderTransactionsTable();
   });
 
-  document.getElementById('categoryFilter').addEventListener('change', e => {
+  document.getElementById('categoryFilter')?.addEventListener('change', e => {
     state.filters.category = e.target.value;
     renderTransactionsTable();
   });
 
   // Modals & Forms
-  document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
-  document.getElementById('fabAddBtn').addEventListener('click', openAddModal);
-  document.getElementById('emptyAddBtn').addEventListener('click', openAddModal);
-  document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-  document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
-  document.getElementById('transactionForm').addEventListener('submit', handleFormSubmit);
+  document.getElementById('openAddModalBtn')?.addEventListener('click', openAddModal);
+  document.getElementById('fabAddBtn')?.addEventListener('click', openAddModal);
+  document.getElementById('emptyAddBtn')?.addEventListener('click', openAddModal);
+  document.getElementById('closeModalBtn')?.addEventListener('click', closeModal);
+  document.getElementById('cancelModalBtn')?.addEventListener('click', closeModal);
+  document.getElementById('transactionForm')?.addEventListener('submit', handleFormSubmit);
 
   // Type Radio in Modal
   document.querySelectorAll('input[name="transactionType"]').forEach(radio => {
@@ -2270,14 +2659,14 @@ function setupEventListeners() {
   // Amount Number Formatter in Modal
   const amountInput = document.getElementById('formAmount');
   const spelledOut = document.getElementById('amountSpelledOut');
-  amountInput.addEventListener('input', e => {
+  amountInput?.addEventListener('input', e => {
     const num = parseFormattedNumber(e.target.value);
     if (num > 0) {
       e.target.value = new Intl.NumberFormat('id-ID').format(num);
-      spelledOut.textContent = formatRupiah(num);
+      if (spelledOut) spelledOut.textContent = formatRupiah(num);
     } else {
       e.target.value = '';
-      spelledOut.textContent = '';
+      if (spelledOut) spelledOut.textContent = '';
     }
   });
 
@@ -2322,8 +2711,17 @@ function setupEventListeners() {
   const printReportBtn = document.getElementById('printReportBtn');
   if (printReportBtn) printReportBtn.addEventListener('click', printReport);
 
+  // Tab Laporan Action Hub Buttons
+  document.getElementById('hubExportPdfBtn')?.addEventListener('click', exportToPDF);
+  document.getElementById('hubSharePdfBtn')?.addEventListener('click', sharePDFReport);
+  document.getElementById('hubShareWaBtn')?.addEventListener('click', shareTextSummary);
+  document.getElementById('hubExportCsvBtn')?.addEventListener('click', exportToCSV);
+  document.getElementById('hubExportJsonBtn')?.addEventListener('click', exportToJSON);
+  document.getElementById('hubImportJsonBtn')?.addEventListener('click', () => importJsonInput?.click());
+  document.getElementById('hubPrintBtn')?.addEventListener('click', printReport);
+
   // Theme Toggle
-  document.getElementById('themeToggleBtn').addEventListener('click', toggleTheme);
+  document.getElementById('themeToggleBtn')?.addEventListener('click', toggleTheme);
 
   // Data Demo & Clear
   const resetDemoDataBtn = document.getElementById('resetDemoDataBtn');
@@ -2336,7 +2734,7 @@ function setupEventListeners() {
     emptySampleDataBtn.addEventListener('click', loadSampleData);
   }
 
-  document.getElementById('clearAllDataBtn').addEventListener('click', () => {
+  document.getElementById('clearAllDataBtn')?.addEventListener('click', () => {
     const conf = confirm('Peringatan: Hapus semua catatan transaksi secara permanen?');
     if (conf) {
       saveTransactions([]);
