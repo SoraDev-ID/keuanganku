@@ -2398,7 +2398,7 @@ function switchTab(tabName) {
   state.activeTab = tabName;
 
   // Update styling tombol navigasi bawah
-  document.querySelectorAll('.bottom-nav-item').forEach(item => {
+  document.querySelectorAll('.nav-tab-btn').forEach(item => {
     if (item.getAttribute('data-tab') === tabName) {
       item.classList.add('active');
     } else {
@@ -2502,7 +2502,7 @@ function refreshUI() {
 // =============================================================================
 function setupEventListeners() {
   // Bottom Navigation Dock
-  document.querySelectorAll('.bottom-nav-item').forEach(btn => {
+  document.querySelectorAll('.nav-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
       if (tab) switchTab(tab);
@@ -2542,8 +2542,29 @@ function setupEventListeners() {
     document.getElementById('notificationModal')?.close();
   });
 
-  // Tombol Bagikan Ringkasan di Header
-  document.getElementById('headerShareBtn')?.addEventListener('click', shareTextSummary);
+  // Tombol Bagikan Ringkasan di Header (Tampilkan dialog pilihan format: Teks atau PDF)
+  document.getElementById('headerShareBtn')?.addEventListener('click', () => {
+    const modal = document.getElementById('quickShareModal');
+    if (modal) modal.showModal();
+  });
+
+  document.getElementById('quickShareTextBtn')?.addEventListener('click', () => {
+    document.getElementById('quickShareModal')?.close();
+    shareTextSummary();
+  });
+
+  document.getElementById('quickSharePdfBtn')?.addEventListener('click', () => {
+    document.getElementById('quickShareModal')?.close();
+    sharePDFReport();
+  });
+
+  document.getElementById('closeQuickShareBtn')?.addEventListener('click', () => {
+    document.getElementById('quickShareModal')?.close();
+  });
+
+  document.getElementById('dismissQuickShareBtn')?.addEventListener('click', () => {
+    document.getElementById('quickShareModal')?.close();
+  });
 
   // Period Tabs
   document.querySelectorAll('.period-tabs .tab-btn').forEach(btn => {
@@ -2773,9 +2794,14 @@ function setupAndroidBackButton() {
     const transactionModal = document.getElementById('transactionModal');
     const exportModal = document.getElementById('exportModal');
     const iosInstallModal = document.getElementById('iosInstallModal');
+    const quickShareModal = document.getElementById('quickShareModal');
 
     if (transactionModal && transactionModal.open) {
       closeModal();
+      return;
+    }
+    if (quickShareModal && quickShareModal.open) {
+      quickShareModal.close();
       return;
     }
     if (exportModal && exportModal.open) {

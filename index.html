@@ -43,17 +43,6 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- iOS / Mobile Status Bar Indicator -->
-    <div class="mobile-status-bar" aria-hidden="true">
-      <span class="status-time">9.41</span>
-      <div class="status-notch-spacer"></div>
-      <div class="status-icons">
-        <i class="fa-solid fa-signal"></i>
-        <i class="fa-solid fa-wifi"></i>
-        <i class="fa-solid fa-battery-full"></i>
-      </div>
-    </div>
-
     <!-- Top Navigation Header -->
     <header class="app-header">
       <div class="brand">
@@ -852,6 +841,47 @@
       </div>
       <div class="modal-footer" style="padding: 14px 24px 20px;">
         <button type="button" id="dismissNotificationBtn" class="btn btn-primary" style="width: 100%;">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal: Pilihan Format Bagikan Ringkasan Cepat -->
+  <dialog id="quickShareModal" class="app-modal">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge" style="background: rgba(37, 99, 235, 0.12); color: #2563eb;">
+            <i class="fa-solid fa-share-nodes"></i>
+          </div>
+          <div>
+            <h3 class="modal-title">Bagikan Laporan</h3>
+            <p class="modal-subtitle">Pilih format ringkasan keuangan</p>
+          </div>
+        </div>
+        <button id="closeQuickShareBtn" class="btn-close" aria-label="Tutup Dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div style="padding: 16px 20px; display: flex; flex-direction: column; gap: 10px;">
+        <button id="quickShareTextBtn" class="export-hub-btn" style="margin: 0; width: 100%; text-align: left;">
+          <div class="hub-icon txt-icon"><i class="fa-solid fa-file-lines"></i></div>
+          <div class="hub-text">
+            <strong>Bagikan sebagai Teks</strong>
+            <span>Pesan ringkas rapi untuk WhatsApp & chat</span>
+          </div>
+          <i class="fa-solid fa-chevron-right hub-arrow"></i>
+        </button>
+        <button id="quickSharePdfBtn" class="export-hub-btn" style="margin: 0; width: 100%; text-align: left;">
+          <div class="hub-icon pdf-icon"><i class="fa-solid fa-file-pdf"></i></div>
+          <div class="hub-text">
+            <strong>Bagikan sebagai PDF</strong>
+            <span>Dokumen PDF resmi lengkap dengan tabel</span>
+          </div>
+          <i class="fa-solid fa-chevron-right hub-arrow"></i>
+        </button>
+      </div>
+      <div class="modal-footer" style="padding: 10px 20px 16px;">
+        <button type="button" id="dismissQuickShareBtn" class="btn btn-outline" style="width: 100%;">Batal</button>
       </div>
     </div>
   </dialog>

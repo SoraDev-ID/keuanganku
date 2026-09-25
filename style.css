@@ -157,31 +157,6 @@ body::after {
   min-height: 100vh;
 }
 
-/* iOS Status Bar Simulation */
-.mobile-status-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 6px 10px 6px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-main);
-  letter-spacing: -0.01em;
-  user-select: none;
-}
-
-.status-time {
-  font-size: 0.92rem;
-  font-weight: 800;
-}
-
-.status-icons {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-}
-
 /* ==========================================================================
    Header Component
    ========================================================================== */
