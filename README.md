@@ -1,128 +1,163 @@
 # KeuanganKu
 
-Aplikasi pencatat pemasukan dan pengeluaran harian untuk Android. Dibuat dengan HTML, CSS, dan JavaScript murni, lalu dibungkus dengan [Capacitor](https://capacitorjs.com/) menjadi aplikasi native. Semua data tersimpan di perangkat dan aplikasi bisa dipakai tanpa internet.
+Aplikasi pencatat pemasukan dan pengeluaran harian offline-first untuk **Android & PWA** (Progressive Web App). Dibangun menggunakan arsitektur Vanilla (HTML5, Vanilla CSS, dan JavaScript murni tanpa framework tambahan) serta dibungkus dengan [Capacitor 6](https://capacitorjs.com/) menjadi aplikasi Android native yang ringan, cepat, dan mandiri.
 
-## Fitur
+Semua data tersimpan secara lokal di perangkat Anda (`localStorage`), tanpa server backend, tanpa akun, tanpa pelacakan, dan 100% dapat digunakan tanpa koneksi internet.
 
-- Catat pemasukan dan pengeluaran dengan kategori dan tanggal
-- Ringkasan saldo, pemasukan, dan pengeluaran per periode: harian, mingguan, bulanan, atau semua
-- Grafik visual pemasukan vs pengeluaran (Chart.js)
-- Pencarian dan filter berdasarkan tipe dan kategori
-- Tema gelap dan terang, tampilan responsif (tabel di layar besar, kartu di ponsel)
-- Ekspor laporan **PDF** dan **CSV** ke folder `Dokumen/KeuanganKu`
-- Bagikan laporan sebagai PDF atau teks (.txt) ke WhatsApp dan aplikasi lain lewat menu bagikan Android
-- Cadangkan dan pulihkan data dalam format **JSON** (bisa disimpan ke Google Drive lewat menu bagikan)
-- Cetak laporan lewat dialog cetak Android
-- Berfungsi penuh offline: Chart.js, Font Awesome, dan font dibundel lokal di folder `vendor/`
-- Data contoh bersifat opsional dan tidak dimuat otomatis
+---
+
+## Fitur Utama
+
+- **Pencatatan Lengkap**: Catat transaksi pemasukan dan pengeluaran dengan nominal, tanggal, waktu, kategori, dan catatan tambahan.
+- **Filter Waktu Fleksibel**: Pantau keuangan harian, mingguan, bulanan berjalan, atau seluruh riwayat transaksi.
+- **Visualisasi Grafik**:
+  - Grafik batang dinamika arus kas masuk vs keluar (Chart.js 4.4).
+  - Grafik donat komposisi pengeluaran per kategori.
+- **Anggaran Bulanan (Budgeting)**: Atur batas anggaran pengeluaran per kategori per bulan dengan indikator progres visual (normal, mendekati batas, overbudget).
+- **Rasio Tabungan Finansial**: Metrik otomatis menghitung persentase tabungan dari total pemasukan periode aktif.
+- **Ekspor & Berbagi Dokumen**:
+  - Unduh dokumen laporan **PDF** (format A4 resmi dengan tabel & ringkasan metrik).
+  - Ekspor data spreadsheet **CSV** dengan UTF-8 BOM untuk Microsoft Excel & Google Sheets.
+  - Bagikan berkas PDF atau ringkasan teks rapi langsung ke WhatsApp / aplikasi lain via Share API.
+  - Cetak laporan fisik via plugin Android `PrintManager`.
+- **Cadangan Data Mandiri (Backup & Restore)**:
+  - Ekspor seluruh basis data transaksi ke berkas **JSON**.
+  - Impor dan pulihkan data dengan validasi schema ketat serta penggabungan cerdas (mencegah tabrakan ID transaksi).
+  - **Pengingat Cadangan**: Banner pengingat otomatis jika data belum dicadangkan lebih dari 30 hari (dapat disembunyikan 7 hari).
+- **Mode Tampilan**: Mode Gelap (*Dark Mode*) dan Terang (*Light Mode*) yang bersih, nyaman di mata, dan responsif.
+- **PWA & Offline Asset**: Seluruh font, ikon Font Awesome, dan library dibundel lokal di folder `vendor/` untuk performa instan tanpa bergantung CDN.
+- **Data Contoh Opsional**: Tersedia data percontohan dinamis yang hanya dimuat jika dipilih secara eksplisit oleh pengguna (tidak dimuat otomatis).
+
+---
+
+## Cakupan Platform
+
+- **Android**: Aplikasi native terpasang via Capacitor 6 (Target SDK 34 / Android 14).
+- **PWA (Web Browser)**: Dapat dibuka langsung sebagai situs web statis atau dipasang (*Add to Home Screen*) di peramban seluler (Chrome, Firefox, Safari).
+
+*Catatan: Repositori ini tidak menyertakan konfigurasi native iOS (`ios/`). Dukungan perangkat Apple berjalan melalui standar Web / PWA Safari.*
+
+---
 
 ## Teknologi
 
-| Bagian | Yang dipakai |
+| Bagian | Teknologi |
 | --- | --- |
-| Antarmuka | HTML, CSS, JavaScript (tanpa framework) |
-| Aplikasi native | Capacitor 6 (Android) |
-| Grafik | Chart.js 4.4.1 |
-| PDF | jsPDF dan jspdf-autotable |
-| Ikon dan font | Font Awesome 6.5.1, Plus Jakarta Sans |
-| Penyimpanan data | `localStorage` |
-| File dan bagikan | `@capacitor/filesystem`, `@capacitor/share` |
-| Cetak | Plugin Java kecil (`PdfPrintPlugin`) memakai `PrintManager` Android |
+| Antarmuka Pengguna | HTML5 Semantik, Vanilla CSS (Design Tokens, Dark/Light Mode), Vanilla JavaScript |
+| Runtime Native Android | Capacitor 6 (Bridge Android WebView) |
+| Grafik Finansial | Chart.js 4.4.1 (Bundel lokal di `vendor/`) |
+| Pembuat Dokumen PDF | jsPDF 2.5.1 + jspdf-autotable 3.8.2 |
+| Ikonografi & Tipografi | Font Awesome 6.5.1 Free, Plus Jakarta Sans Font |
+| Penyimpanan Offline | Browser `localStorage` (`keuanganku_transactions_v1`) |
+| Plugin Android Native | `@capacitor/app`, `@capacitor/filesystem`, `@capacitor/share`, `@capacitor/status-bar`, `PdfPrintPlugin` |
 
-## Struktur proyek
+---
+
+## Struktur Folder
 
 ```
 .
-├── index.html            Halaman utama
-├── app.js                Logika aplikasi
-├── style.css             Gaya tampilan
-├── manifest.webmanifest  Manifest web app
-├── vendor/               Library yang dibundel lokal
-├── icons/                Ikon aplikasi
-├── prepare-www.js        Menyalin aset web ke folder www/
-├── capacitor.config.json Konfigurasi Capacitor
-├── android/              Proyek Android (Gradle)
-└── .github/workflows/    CI: build APK debug otomatis
+├── index.html              # Halaman utama aplikasi (dashboard, tabel, modal)
+├── style.css               # Desain UI, token warna fintech, dark/light mode
+├── app.js                  # State aplikasi, event listeners, dan orchestrator
+├── js/
+│   ├── format.js           # Formatter Rupiah, tanggal ISO/Indo, sanitasi escapeHtml
+│   ├── data.js             # Master kategori, storage, sample data relatif, schema JSON
+│   ├── charts.js           # Visualisasi grafik batang & donat Chart.js
+│   ├── export.js           # Generator PDF, CSV, backup/restore JSON, share & print
+│   └── ui.js               # Render tabel, kartu mobile, modul anggaran, banner cadangan
+├── test/
+│   └── test.js             # Pengujian unit otomatis (Node.js built-in assert)
+├── vendor/                 # Pustaka offline (Chart.js, jsPDF, Font Awesome, Font)
+├── icons/                  # Aset ikon launcher & favicon PWA
+├── manifest.webmanifest    # Konfigurasi instalasi PWA
+├── prepare-www.js          # Skrip penyalin aset web ke folder www/ untuk Capacitor
+├── capacitor.config.json   # Konfigurasi appId dan webDir Capacitor
+├── android/                # Proyek native Android (Gradle & Java)
+├── LICENSE                 # Lisensi open source MIT
+└── .github/workflows/      # Otomasi CI (Build debug APK & Release tag)
 ```
 
-## Menjalankan untuk pengembangan
+---
 
-Prasyarat: Node.js 20+, JDK 17, dan Android SDK (platform 34, build-tools 34.0.0). Arahkan Gradle ke SDK lewat `android/local.properties`:
+## Panduan Pengembangan & Pengujian
 
-```
-sdk.dir=C:/Users/NAMA/AppData/Local/Android/Sdk
-```
+### Prasyarat
 
-Pasang dependensi, salin aset web, dan sinkronkan ke proyek Android:
+1. **Node.js**: Versi 20 atau lebih baru.
+2. **JDK**: Java Development Kit 17 (untuk Android build).
+3. **Android SDK**: Platform SDK 34 dan Build-tools 34.0.0.
 
-```bash
-npm install
-npm run build
-npx cap sync android
-```
+Konfigurasikan direktori Android SDK Anda pada file `android/local.properties`:
 
-Build APK debug:
-
-```bash
-cd android
-./gradlew assembleDebug        # Windows: gradlew.bat assembleDebug
+```properties
+sdk.dir=C:/Users/NAMA_USER/AppData/Local/Android/Sdk
 ```
 
-Hasilnya ada di `android/app/build/outputs/apk/debug/app-debug.apk`.
+### Langkah Instalasi & Uji Coba
 
-## Build APK release
+1. **Pasang Dependensi**:
+   ```bash
+   npm install
+   ```
 
-Build release memakai keystore yang dibaca dari environment variable. Jangan menyimpan keystore atau password di repo.
+2. **Jalankan Pengujian Unit**:
+   Pengujian otomatis menguji formatter mata uang, validitas tanggal kalender riil kabisat, proteksi XSS, validasi schema JSON, dan penggabungan ID:
+   ```bash
+   npm test
+   ```
 
-```bash
-keytool -genkey -v -keystore keuanganku-release-key.jks -alias keuanganku-key -keyalg RSA -keysize 2048 -validity 10000
-```
+3. **Kompilasi Aset Web**:
+   Menyalin `index.html`, `style.css`, `app.js`, `js/`, `vendor/`, dan `icons/` ke folder `www/`:
+   ```bash
+   npm run build
+   ```
 
-Windows (cmd):
+4. **Sinkronkan ke Native Android**:
+   ```bash
+   npx cap sync android
+   ```
 
-```bat
-set "KEYSTORE_FILE=%CD%\keuanganku-release-key.jks"
-set "KEYSTORE_PASSWORD=password_anda"
-set "KEY_ALIAS=keuanganku-key"
-set "KEY_PASSWORD=password_anda"
-```
+5. **Build APK Debug**:
+   ```bash
+   cd android
+   ./gradlew assembleDebug      # Pada Windows Command Prompt/PowerShell: gradlew.bat assembleDebug
+   ```
+   Berkas APK hasil build berada di:
+   `android/app/build/outputs/apk/debug/app-debug.apk`
 
-Linux/macOS:
+---
 
-```bash
-export KEYSTORE_FILE="$PWD/keuanganku-release-key.jks"
-export KEYSTORE_PASSWORD="password_anda"
-export KEY_ALIAS="keuanganku-key"
-export KEY_PASSWORD="password_anda"
-```
+## Peringatan Keamanan & Pencadangan Data
 
-Lalu:
+> [!IMPORTANT]
+> **Data Disimpan 100% di Perangkat Anda (Offline-First)**
+> KeuanganKu tidak menyimpan data di cloud server mana pun demi privasi penuh pengguna. Jika aplikasi dicopot (*uninstall*) atau data aplikasi dibersihkan lewat setelan Android, seluruh catatan keuangan akan **terhapus secara permanen**.
 
-```bash
-npm run build
-npx cap sync android
-cd android
-./gradlew assembleRelease
-```
+**Langkah Pencegahan:**
+Lakukan pencadangan berkala melalui menu **Laporan & Cadangan → Cadangkan Data (.json)** atau klik tombol **Cadangkan** pada banner pengingat. Simpan berkas JSON tersebut ke Google Drive atau penyimpanan eksternal.
 
-Hasilnya ada di `android/app/build/outputs/apk/release/app-release.apk`. Simpan file keystore dan passwordnya di tempat aman di luar repo. Jika hilang, aplikasi tidak bisa diperbarui dengan tanda tangan yang sama.
+---
 
-## Instal di HP
+## Alur Rilis & Tagging Versi (CI/CD)
 
-1. Unduh `app-release.apk` dari halaman [Releases](../../releases).
-2. Buka file APK di HP dan izinkan instal dari sumber tidak dikenal jika diminta.
-3. Untuk memperbarui, instal APK versi baru. Data tetap ada selama tanda tangannya sama.
+Proyek ini menggunakan GitHub Actions (`.github/workflows/release.yml`) untuk membangun APK rilis yang ditandatangani (*signed release APK*).
 
-Ekspor PDF, CSV, dan cadangan JSON tersimpan di `Dokumen/KeuanganKu`.
+1. Pastikan nomor versi di `package.json` dan `android/app/build.gradle` (`versionName`) sudah cocok (misal `1.0.3`).
+2. Masukkan rahasia (*repository secrets*) pada repositori GitHub Anda:
+   - `KEYSTORE_BASE64`: File `.jks` rilis yang di-encode ke base64.
+   - `KEYSTORE_PASSWORD`: Kata sandi keystore.
+   - `KEY_ALIAS`: Alias kunci rilis.
+   - `KEY_PASSWORD`: Kata sandi kunci.
+3. Buat dan kirim tag rilis berawalan `v`:
+   ```bash
+   git tag v1.0.3
+   git push origin v1.0.3
+   ```
+4. GitHub Actions akan memverifikasi kesesuaian tag dengan `versionName`, mengkompilasi APK release, dan menerbitkan rilis di halaman **Releases** repositori secara otomatis.
 
-## Cadangan data
-
-Data disimpan di penyimpanan lokal aplikasi, jadi akan hilang jika data aplikasi dihapus atau aplikasi di-uninstall. Buat cadangan berkala lewat menu **Laporan, Berbagi & Cadangan → Cadangkan Data (.json)**, lalu pulihkan lewat **Pulihkan / Impor Data (.json)**.
-
-## Build otomatis (CI)
-
-Workflow `.github/workflows/build-mobile.yml` membangun APK debug setiap push ke `main`. Hasilnya tersedia di tab **Actions** pada bagian **Artifacts**. APK debug memakai tanda tangan berbeda dari APK release, jadi tidak bisa saling menimpa di perangkat yang sama.
+---
 
 ## Lisensi
 
-Belum ditentukan.
+Didistribusikan di bawah lisensi open source [MIT](LICENSE). Hak Cipta (c) 2026 SoraDev-ID / Kontributor KeuanganKu.

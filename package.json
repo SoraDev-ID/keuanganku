@@ -1,10 +1,11 @@
 {
   "name": "keuanganku",
-  "version": "1.0.1",
-  "description": "KeuanganKu - Aplikasi Catatan Pengeluaran & Pemasukan (PWA, Android & iOS)",
+  "version": "1.0.3",
+  "description": "KeuanganKu - Aplikasi Catatan Pengeluaran & Pemasukan (Android & PWA)",
   "main": "app.js",
   "scripts": {
     "start": "npx serve . -l 3000",
+    "test": "node test/test.js",
     "build": "node prepare-www.js",
     "cap:sync": "node prepare-www.js && cap sync",
     "cap:add:android": "node prepare-www.js && cap add android",

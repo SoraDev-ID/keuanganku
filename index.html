@@ -105,6 +105,27 @@
       </div>
     </aside>
 
+    <!-- Backup Reminder Banner -->
+    <aside id="backupReminderBanner" class="backup-reminder-banner hidden" role="alert">
+      <div class="backup-banner-content">
+        <div class="backup-banner-icon">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="backup-banner-text">
+          <strong>Amankan Catatan Keuangan Anda</strong>
+          <p>Data tersimpan offline di HP ini. Cadangkan ke berkas JSON agar tidak hilang jika aplikasi dibersihkan.</p>
+        </div>
+      </div>
+      <div class="backup-banner-actions">
+        <button id="bannerBackupNowBtn" class="btn btn-sm btn-primary">
+          <i class="fa-solid fa-file-arrow-down"></i> Cadangkan
+        </button>
+        <button id="bannerDismissBackupBtn" class="btn btn-icon-sm" aria-label="Ingatkan 7 hari lagi" title="Ingatkan 7 hari lagi">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </aside>
+
     <!-- Main Views Container with Dynamic Tab Navigation -->
     <main class="dashboard-main">
       
@@ -121,10 +142,10 @@
                 <i class="fa-solid fa-circle-info"></i>
               </button>
             </div>
-            <h2 class="hero-balance-amount" id="netBalanceValue">Rp 9.305.000</h2>
+            <h2 class="hero-balance-amount" id="netBalanceValue">Rp 0</h2>
             <div class="trend-pill" id="balanceTrendPill">
-              <i class="fa-solid fa-arrow-trend-up"></i>
-              <span id="balanceTrendText">Naik 5,7% dari bulan lalu</span>
+              <i class="fa-solid fa-chart-line"></i>
+              <span id="balanceTrendText">-</span>
             </div>
             <!-- Hidden compatibility badge -->
             <span class="card-badge hidden" id="balanceStatusBadge">Cashflow Positif</span>
@@ -155,10 +176,10 @@
               <i class="fa-solid fa-arrow-down"></i>
             </div>
             <span class="dual-label">Total Pemasukan</span>
-            <h3 class="dual-amount text-income" id="totalIncomeValue">Rp 10.850.000</h3>
+            <h3 class="dual-amount text-income" id="totalIncomeValue">Rp 0</h3>
             <div class="dual-period-tag">
               <i class="fa-regular fa-calendar"></i>
-              <span id="incomePeriodMonth">Mei 2024</span>
+              <span id="incomePeriodMonth">-</span>
             </div>
             <span class="hidden" id="incomeCountText">0 transaksi</span>
           </div>
@@ -172,10 +193,10 @@
               <i class="fa-solid fa-arrow-up"></i>
             </div>
             <span class="dual-label">Total Pengeluaran</span>
-            <h3 class="dual-amount text-expense" id="totalExpenseValue">Rp 1.545.000</h3>
+            <h3 class="dual-amount text-expense" id="totalExpenseValue">Rp 0</h3>
             <div class="dual-period-tag">
               <i class="fa-regular fa-calendar"></i>
-              <span id="expensePeriodMonth">Mei 2024</span>
+              <span id="expensePeriodMonth">-</span>
             </div>
             <span class="hidden" id="expenseCountText">0 transaksi</span>
           </div>
@@ -196,22 +217,22 @@
               <div class="donut-chart-container">
                 <svg class="donut-ring-svg" viewBox="0 0 100 100">
                   <circle class="donut-track" cx="50" cy="50" r="38" stroke-width="8" fill="none" />
-                  <circle id="savingsDonutCircle" class="donut-meter" cx="50" cy="50" r="38" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="33.4" />
+                  <circle id="savingsDonutCircle" class="donut-meter" cx="50" cy="50" r="38" stroke-width="8" fill="none" stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="238.76" />
                 </svg>
                 <div class="donut-label-box">
-                  <span class="donut-pct-text" id="savingsDonutPercent">86%</span>
-                  <span class="donut-target-text" id="savingsTargetText">Target: 80%</span>
+                  <span class="donut-pct-text" id="savingsDonutPercent">0%</span>
+                  <span class="donut-target-text" id="savingsTargetText">Target: 20%</span>
                 </div>
               </div>
             </div>
 
             <!-- Right: Stats -->
             <div class="savings-stats-side">
-              <div class="big-savings-rate" id="savingsRateValue">86%</div>
+              <div class="big-savings-rate" id="savingsRateValue">0%</div>
               <p class="savings-sub-desc">Rasio tabungan kamu</p>
-              <div class="savings-status-badge status-excellent" id="savingsStatusBadge">
-                <i class="fa-solid fa-circle-check"></i>
-                <span id="savingsStatusText">Sangat baik!</span>
+              <div class="savings-status-badge" id="savingsStatusBadge">
+                <i class="fa-solid fa-chart-line"></i>
+                <span id="savingsStatusText">Belum ada data</span>
               </div>
               <span class="hidden" id="savingsHelpText">dari total pemasukan</span>
             </div>
@@ -408,8 +429,11 @@
 
         <!-- Category Progress Breakdown List -->
         <section class="card card-clean category-breakdown-card">
-          <div class="card-clean-header">
+          <div class="card-clean-header" style="display: flex; align-items: center; justify-content: space-between;">
             <h3 class="card-clean-title">Rincian Pengeluaran per Kategori</h3>
+            <button id="openBudgetModalBtn" class="btn btn-sm btn-outline" title="Atur batas anggaran bulanan">
+              <i class="fa-solid fa-sliders"></i> Atur Anggaran
+            </button>
           </div>
           <div class="category-progress-list" id="categoryProgressList">
             <!-- Dynamically populated via JS -->
@@ -740,6 +764,37 @@
     </div>
   </dialog>
 
+  <!-- Modal Atur Anggaran Bulanan -->
+  <dialog id="budgetModal" class="app-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div class="modal-icon-badge" style="background: rgba(37, 99, 235, 0.12); color: var(--color-primary);">
+            <i class="fa-solid fa-sliders"></i>
+          </div>
+          <div>
+            <h3 class="modal-title">Atur Anggaran Bulanan</h3>
+            <p class="modal-subtitle">Tentukan batas pengeluaran per kategori untuk memantau keuangan Anda</p>
+          </div>
+        </div>
+        <button id="closeBudgetModalBtn" class="btn-close" aria-label="Tutup Dialog">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <form id="budgetForm" class="modal-form" style="padding: 16px 20px;">
+        <div class="budget-items-list" id="budgetInputsContainer">
+          <!-- Populated via JS -->
+        </div>
+
+        <div class="modal-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+          <button type="button" id="cancelBudgetBtn" class="btn btn-secondary">Batal</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Simpan Anggaran</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <!-- Modal Panduan Install iOS Safari -->
   <dialog id="iosInstallModal" class="app-modal">
     <div class="modal-card">
@@ -890,6 +945,11 @@
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <!-- Scripts -->
+  <script src="js/format.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/ui.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
