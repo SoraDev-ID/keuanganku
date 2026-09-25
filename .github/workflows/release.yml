@@ -1,0 +1,90 @@
+name: Release APK (KeuanganKu)
+
+# Jalan otomatis saat tag versi di-push, misalnya: git tag v1.0.2 && git push origin v1.0.2
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verifikasi versi cocok dengan tag
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          APP_VERSION=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
+          echo "Tag: $TAG_VERSION | versionName: $APP_VERSION"
+          if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+            echo "::error::Tag ($TAG_VERSION) tidak sama dengan versionName di build.gradle ($APP_VERSION). Naikkan versi lalu buat tag lagi."
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependensi & siapkan aset web
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Siapkan keystore dari Secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Secret KEYSTORE_BASE64 belum diisi."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release-key.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/release-key.jks" >> "$GITHUB_ENV"
+
+      - name: Build Release APK (bertanda tangan)
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verifikasi tanda tangan APK
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          "$APKSIGNER" verify --print-certs android/app/build/outputs/apk/release/app-release.apk | head -5
+
+      - name: Ganti nama APK
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk "KeuanganKu-${GITHUB_REF_NAME}.apk"
+
+      - name: Buat GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "KeuanganKu-${GITHUB_REF_NAME}.apk" \
+            --title "KeuanganKu ${GITHUB_REF_NAME}" \
+            --generate-notes
+
+      - name: Hapus keystore dari runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-key.jks"
